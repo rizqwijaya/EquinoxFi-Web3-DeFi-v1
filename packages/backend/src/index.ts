@@ -73,6 +73,16 @@ app.get<{ Params: { address: string } }>('/stakers/:address', async (req, reply)
   };
 });
 
+app.get<{ Params: { address: string } }>('/stakers/:address/history', async (req, reply) => {
+  const { address } = req.params;
+  if (!isAddress(address)) {
+    return reply.code(400).send({ error: 'invalid address' });
+  }
+  return { address: getAddress(address), events: db.getStakerHistory(address, 50) };
+});
+
+app.get('/activity', async () => ({ events: db.getRecentActivity(25) }));
+
 async function main(): Promise<void> {
   if (indexer) {
     app.log.info('Backfilling vault events…');

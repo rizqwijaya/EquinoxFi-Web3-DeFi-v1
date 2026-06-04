@@ -31,7 +31,16 @@ export interface Db {
   getStakerCount(): number;
   getTotalRewardsPaid(): bigint;
   getStakerAggregate(user: string): { staked: bigint; claimed: bigint };
+  getStakerHistory(user: string, limit: number): HistoryRow[];
+  getRecentActivity(limit: number): HistoryRow[];
   close(): void;
+}
+
+export interface HistoryRow {
+  kind: EventKind;
+  amount: string;
+  blockNumber: number;
+  txHash: string;
 }
 
 export function openDb(path: string): Db {
@@ -73,6 +82,18 @@ export function openDb(path: string): Db {
   );
   const rewardsPaidStmt = sqlite.prepare(`SELECT amount FROM events WHERE kind = 'RewardPaid'`);
   const aggStmt = sqlite.prepare(`SELECT amount FROM events WHERE kind = ? AND user = ?`);
+  const historyStmt = sqlite.prepare(
+    `SELECT kind, amount, block_number AS blockNumber, tx_hash AS txHash
+     FROM events WHERE user = ?
+     ORDER BY block_number DESC, log_index DESC
+     LIMIT ?`,
+  );
+  const recentStmt = sqlite.prepare(
+    `SELECT kind, amount, block_number AS blockNumber, tx_hash AS txHash
+     FROM events
+     ORDER BY block_number DESC, log_index DESC
+     LIMIT ?`,
+  );
 
   return {
     insertEvent(e) {
@@ -115,6 +136,14 @@ export function openDb(path: string): Db {
       const staked = sum('Staked') - sum('Withdrawn');
       const claimed = sum('RewardPaid');
       return { staked: staked < 0n ? 0n : staked, claimed };
+    },
+
+    getStakerHistory(user, limit) {
+      return historyStmt.all(user.toLowerCase(), limit) as unknown as HistoryRow[];
+    },
+
+    getRecentActivity(limit) {
+      return recentStmt.all(limit) as unknown as HistoryRow[];
     },
 
     close() {

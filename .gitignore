@@ -21,10 +21,12 @@ packages/contracts/broadcast/
 packages/contracts/.gas-snapshot
 
 # Backend cache / SQLite
-packages/backend/*.db
-packages/backend/*.db-journal
-packages/backend/*.sqlite
-packages/backend/data/
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+**/data/
 
 # Frontend
 packages/frontend/.vite/

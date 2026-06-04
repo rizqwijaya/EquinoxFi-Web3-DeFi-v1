@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,5 +11,34 @@ body {
   margin: 0;
   background-color: #0a0e27;
   color: #e2e8f0;
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle aurora gradient backdrop. */
+.aurora-bg {
+  background:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(79, 70, 229, 0.18), transparent 60%),
+    radial-gradient(50rem 35rem at 90% 0%, rgba(45, 212, 191, 0.12), transparent 55%),
+    #0a0e27;
+}
+
+/* Gradient-bordered card. */
+.card-glow {
+  position: relative;
+  background: rgba(17, 22, 46, 0.6);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  backdrop-filter: blur(12px);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
