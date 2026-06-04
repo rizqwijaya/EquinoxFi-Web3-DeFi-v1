@@ -1,0 +1,15 @@
+{
+  "name": "equinoxfi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EquinoxFi — single-asset yield staking protocol. Balance at the heart of yield.",
+  "packageManager": "pnpm@11.5.0",
+  "scripts": {
+    "build:backend": "pnpm --filter @equinoxfi/backend build",
+    "build:frontend": "pnpm --filter @equinoxfi/frontend build",
+    "dev:backend": "pnpm --filter @equinoxfi/backend dev",
+    "dev:frontend": "pnpm --filter @equinoxfi/frontend dev",
+    "test:contracts": "pnpm --filter @equinoxfi/contracts test"
+  },
+  "license": "MIT"
+}

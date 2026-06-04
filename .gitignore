@@ -1,0 +1,41 @@
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Node
+node_modules/
+dist/
+build/
+.pnpm-store/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Foundry
+packages/contracts/out/
+packages/contracts/cache/
+packages/contracts/broadcast/
+packages/contracts/.gas-snapshot
+
+# Backend cache / SQLite
+packages/backend/*.db
+packages/backend/*.db-journal
+packages/backend/*.sqlite
+packages/backend/data/
+
+# Frontend
+packages/frontend/.vite/
+packages/frontend/coverage/
+
+# Coverage
+lcov.info
+coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp

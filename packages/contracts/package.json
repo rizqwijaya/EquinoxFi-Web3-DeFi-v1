@@ -1,0 +1,13 @@
+{
+  "name": "@equinoxfi/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EquinoxFi Solidity contracts (Foundry).",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vv",
+    "coverage": "forge coverage",
+    "fmt": "forge fmt"
+  },
+  "license": "MIT"
+}
