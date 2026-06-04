@@ -66,16 +66,11 @@ for the full derivation.
 
 ## Deployed contracts (Sepolia)
 
-> **Status: not yet deployed.** Deployment is a separate step that requires a
-> funded test wallet (`.env`). Once
-> [`script/Deploy.s.sol`](packages/contracts/script/Deploy.s.sol) is broadcast,
-> the addresses below are filled in with direct Etherscan links.
-
 | Contract | Address | Explorer |
 |---|---|---|
-| `EquinoxVault` | `0x…` (pending) | [Sepolia Etherscan](https://sepolia.etherscan.io) |
-| Staking token (`eSTAKE`) | `0x…` (pending) | [Sepolia Etherscan](https://sepolia.etherscan.io) |
-| Reward token (`eRWD`) | `0x…` (pending) | [Sepolia Etherscan](https://sepolia.etherscan.io) |
+| `EquinoxVault` | `0xF06C8E0d362D5fdAcd510BBeEEB4b1D45fD059a2` | [Sepolia Etherscan ↗](https://sepolia.etherscan.io/address/0xF06C8E0d362D5fdAcd510BBeEEB4b1D45fD059a2) |
+| Staking token (`eSTAKE`) | `0xfDfd8c74193df960759BF7Ce5d0675D34FFb0531` | [Sepolia Etherscan ↗](https://sepolia.etherscan.io/address/0xfDfd8c74193df960759BF7Ce5d0675D34FFb0531) |
+| Reward token (`eRWD`) | `0x4fd7848Aed8fc0c2FCca33494e55A0B330eCe17D` | [Sepolia Etherscan ↗](https://sepolia.etherscan.io/address/0x4fd7848Aed8fc0c2FCca33494e55A0B330eCe17D) |
 
 Network: **Ethereum Sepolia** · Chain ID `11155111` · explorer
 `https://sepolia.etherscan.io`.
