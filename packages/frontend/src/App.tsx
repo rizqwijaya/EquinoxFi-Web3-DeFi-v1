@@ -32,9 +32,7 @@ export function App() {
           </Routes>
         </main>
 
-        <footer className="border-t border-indigo/10 py-5 text-center text-xs text-slate-600">
-          EquinoxFi · Sepolia testnet · Balance at the heart of yield.
-        </footer>
+
       </div>
     </BrowserRouter>
   );
