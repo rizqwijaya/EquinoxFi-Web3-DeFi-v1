@@ -11,7 +11,7 @@
  * `deadline` argument. ERC-20 approval to the router is handled inline (the
  * primary button becomes "Approve" when allowance is short).
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import {
   useAccount,
   useReadContract,
@@ -31,11 +31,76 @@ type Tab = 'swap' | 'buy' | 'sell';
 
 const SYMBOL = (addr: Address) => TOKENS[addr.toLowerCase()]?.symbol ?? '???';
 
-function TokenBadge({ token }: { token: Address }) {
+const ALL_TOKENS: Address[] = [TOKEN_A_ADDRESS, TOKEN_B_ADDRESS];
+
+function TokenSelector({
+  selected,
+  onChange,
+  disabled,
+}: {
+  selected: Address;
+  onChange?: (addr: Address) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
   return (
-    <div className="flex items-center gap-2 rounded-full bg-midnight-light border border-white/8 px-3 py-1.5 shrink-0">
-      <span className="text-aurora text-sm">◇</span>
-      <span className="font-semibold text-sm">{SYMBOL(token)}</span>
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        type="button"
+        onClick={() => !disabled && onChange && setOpen((o) => !o)}
+        className={`flex items-center gap-2 rounded-full bg-midnight-light border border-white/8 px-3 py-1.5 transition ${
+          disabled || !onChange ? 'cursor-default' : 'hover:border-aurora/40 cursor-pointer'
+        }`}
+      >
+        <span className="text-aurora text-sm">◇</span>
+        <span className="font-semibold text-sm">{SYMBOL(selected)}</span>
+        {!disabled && onChange && (
+          <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-44 rounded-2xl border border-white/10 bg-midnight-light shadow-xl shadow-black/40 z-50 overflow-hidden p-1">
+          {ALL_TOKENS.map((addr) => (
+            <button
+              key={addr}
+              type="button"
+              onClick={() => {
+                onChange?.(addr);
+                setOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition ${
+                addr.toLowerCase() === selected.toLowerCase()
+                  ? 'bg-indigo/20 text-aurora'
+                  : 'text-slate-300 hover:bg-white/5'
+              }`}
+            >
+              <span className="text-aurora">◇</span>
+              <div className="text-left">
+                <div className="font-semibold">{SYMBOL(addr)}</div>
+                <div className="text-xs text-slate-500">Equinox Token</div>
+              </div>
+              {addr.toLowerCase() === selected.toLowerCase() && (
+                <svg className="w-4 h-4 ml-auto text-aurora" fill="none" viewBox="0 0 24 24">
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -57,16 +122,42 @@ export function SwapCard() {
   const [slippage, setSlippage] = useState('0.5');
   const [deadline, setDeadline] = useState('30');
 
-  // Direction is derived from the active tab; Swap can flip freely.
-  const [swapFlipped, setSwapFlipped] = useState(false);
+  // Swap tab: free token selection. Buy/Sell: direction locked.
+  const [swapTokenIn, setSwapTokenIn] = useState<Address>(TOKEN_A_ADDRESS);
+  const [swapTokenOut, setSwapTokenOut] = useState<Address>(TOKEN_B_ADDRESS);
+
   const [tokenIn, tokenOut]: [Address, Address] =
     tab === 'buy'
-      ? [TOKEN_B_ADDRESS, TOKEN_A_ADDRESS] // buy eTKNA with eTKNB
+      ? [TOKEN_B_ADDRESS, TOKEN_A_ADDRESS]
       : tab === 'sell'
-        ? [TOKEN_A_ADDRESS, TOKEN_B_ADDRESS] // sell eTKNA for eTKNB
-        : swapFlipped
-          ? [TOKEN_B_ADDRESS, TOKEN_A_ADDRESS]
-          : [TOKEN_A_ADDRESS, TOKEN_B_ADDRESS];
+        ? [TOKEN_A_ADDRESS, TOKEN_B_ADDRESS]
+        : [swapTokenIn, swapTokenOut];
+
+  function flipSwap() {
+    setSwapTokenIn(swapTokenOut);
+    setSwapTokenOut(swapTokenIn);
+    resetInput();
+  }
+
+  function handleTokenInChange(addr: Address) {
+    if (addr.toLowerCase() === swapTokenOut.toLowerCase()) {
+      setSwapTokenIn(swapTokenOut);
+      setSwapTokenOut(swapTokenIn);
+    } else {
+      setSwapTokenIn(addr);
+    }
+    resetInput();
+  }
+
+  function handleTokenOutChange(addr: Address) {
+    if (addr.toLowerCase() === swapTokenIn.toLowerCase()) {
+      setSwapTokenOut(swapTokenIn);
+      setSwapTokenIn(swapTokenOut);
+    } else {
+      setSwapTokenOut(addr);
+    }
+    resetInput();
+  }
 
   const { data: balanceIn } = useReadContract({
     address: tokenIn,
@@ -230,7 +321,10 @@ export function SwapCard() {
             }}
             className="w-full bg-transparent text-4xl font-bold outline-none placeholder:text-slate-600"
           />
-          <TokenBadge token={tokenIn} />
+          <TokenSelector
+            selected={tokenIn}
+            onChange={tab === 'swap' ? handleTokenInChange : undefined}
+          />
         </div>
 
         {/* Buy presets */}
@@ -273,21 +367,23 @@ export function SwapCard() {
       {/* Flip arrow (Swap tab only) */}
       <div className="flex justify-center -my-0.5 z-10">
         <button
-          onClick={() => tab === 'swap' && setSwapFlipped((v) => !v)}
+          onClick={() => tab === 'swap' && flipSwap()}
           disabled={tab !== 'swap'}
-          className={`rounded-xl bg-midnight border border-indigo/20 p-2 text-slate-400 text-sm transition ${
-            tab === 'swap' ? 'hover:text-aurora hover:border-aurora/40 cursor-pointer' : 'cursor-default'
+          className={`rounded-xl bg-midnight border border-indigo/20 p-2 transition ${
+            tab === 'swap' ? 'hover:text-aurora hover:border-aurora/40 cursor-pointer text-slate-400' : 'cursor-default text-slate-600'
           }`}
           title={tab === 'swap' ? 'Flip direction' : undefined}
         >
-          ↓
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </button>
       </div>
 
       {/* Output panel (read-only, from quote) */}
       <div className="rounded-2xl bg-midnight/40 border border-white/5 p-4">
         <div className="text-xs text-slate-500 mb-2">You receive</div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
           <span
             className={`text-4xl font-bold ${
               quotedOut && quotedOut > 0n ? 'text-slate-100' : 'text-slate-600'
@@ -295,7 +391,10 @@ export function SwapCard() {
           >
             {quotedOut !== undefined ? fmt(quotedOut) : '0'}
           </span>
-          <TokenBadge token={tokenOut} />
+          <TokenSelector
+            selected={tokenOut}
+            onChange={tab === 'swap' ? handleTokenOutChange : undefined}
+          />
         </div>
         {price && (
           <div className="mt-2 text-xs text-slate-600">

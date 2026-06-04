@@ -15,8 +15,8 @@ import {
 } from 'recharts';
 import { formatUnits } from 'viem';
 import { useStats, useActivity, type HistoryEvent } from '../hooks';
-import { StatCard, EmptyState, Badge } from '../components/ui';
-import { fmt, txUrl } from '../format';
+import { StatCard } from '../components/ui';
+import { fmt } from '../format';
 
 /** Build a cumulative TVL series (ascending by block) from activity events. */
 function buildTvlSeries(events: HistoryEvent[]): { block: number; tvl: number }[] {
@@ -34,7 +34,7 @@ function buildTvlSeries(events: HistoryEvent[]): { block: number; tvl: number }[
 
 export function AnalyticsPage() {
   const { data: stats } = useStats();
-  const { data: activity, isError } = useActivity();
+  const { data: activity } = useActivity();
 
   const series = useMemo(() => buildTvlSeries(activity?.events ?? []), [activity]);
 
@@ -102,32 +102,6 @@ export function AnalyticsPage() {
         )}
       </div>
 
-      <h3 className="text-lg font-semibold mt-8 mb-3">Recent activity</h3>
-      {isError || (activity && activity.events.length === 0) ? (
-        <EmptyState
-          title="No activity yet"
-          hint="Stake events will appear here once the backend indexer has data."
-        />
-      ) : (
-        <div className="card-glow rounded-2xl divide-y divide-indigo/10 overflow-hidden">
-          {(activity?.events ?? []).map((e) => (
-            <div key={e.txHash + e.kind} className="flex items-center justify-between px-4 py-3">
-              <Badge kind={e.kind} />
-              <span className="font-medium">
-                {fmt(BigInt(e.amount))} {e.kind === 'RewardPaid' ? 'eRWD' : 'eSTAKE'}
-              </span>
-              <a
-                href={txUrl(e.txHash)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-indigo-bright hover:underline"
-              >
-                {e.txHash.slice(0, 8)}…
-              </a>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

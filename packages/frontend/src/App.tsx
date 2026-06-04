@@ -8,7 +8,6 @@ import { SwapPage } from './pages/SwapPage';
 import { PoolPage } from './pages/PoolPage';
 import { StakePage } from './pages/StakePage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
-import { HistoryPage } from './pages/HistoryPage';
 
 export function App() {
   return (
@@ -28,7 +27,6 @@ export function App() {
             <Route path="/pool" element={<PoolPage />} />
             <Route path="/stake" element={<StakePage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/history" element={<HistoryPage />} />
           </Routes>
         </main>
 

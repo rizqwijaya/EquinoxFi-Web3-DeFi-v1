@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAccount,
   useReadContract,
@@ -68,23 +68,41 @@ export function StakeCard() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
   const busy = isPending || isConfirming;
 
+  // Tracks which action the current tx represents so we can chain approve → stake.
+  const pendingAction = useRef<'approve' | 'stake' | null>(null);
+
   const setMax = () => available !== undefined && setAmount(fmt(available, 18, 18));
 
   const onPrimary = () => {
     if (mode === 'claim') {
+      pendingAction.current = null;
       writeContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: 'claimReward', args: [] });
       return;
     }
     if (mode === 'stake') {
       if (needsApproval) {
+        pendingAction.current = 'approve';
         writeContract({ address: STAKING_TOKEN_ADDRESS, abi: erc20Abi, functionName: 'approve', args: [VAULT_ADDRESS, parsed] });
       } else {
+        pendingAction.current = 'stake';
         writeContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: 'stake', args: [parsed] });
       }
     } else {
+      pendingAction.current = null;
       writeContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: 'withdraw', args: [parsed] });
     }
   };
+
+  // After an approval confirms, auto-fire the stake so the user only signs once
+  // conceptually (two wallet prompts, but no "forgotten second click").
+  useEffect(() => {
+    if (isSuccess && pendingAction.current === 'approve' && parsed > 0n) {
+      pendingAction.current = 'stake';
+      reset();
+      writeContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: 'stake', args: [parsed] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess]);
 
   const primaryLabel = !address
     ? 'Connect wallet'
@@ -204,7 +222,7 @@ export function StakeCard() {
           {/* Bottom panel: receive (read-only) */}
           <div className="rounded-2xl bg-midnight/40 border border-white/5 p-4">
             <div className="text-xs text-slate-500 mb-2">{receiveLabel}</div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3">
               <span className={`text-4xl font-bold ${receiveValue === '0' ? 'text-slate-600' : 'text-slate-100'}`}>
                 {receiveValue}
               </span>
@@ -246,8 +264,14 @@ export function StakeCard() {
 
       {/* ── Tx feedback ── */}
       <div className="mt-3 min-h-[1.25rem] text-sm text-center">
-        {isConfirming && <span className="text-aurora">Confirming transaction…</span>}
-        {isSuccess && txHash && (
+        {isConfirming && (
+          <span className="text-aurora">
+            {pendingAction.current === 'approve'
+              ? 'Approving… (staking will follow automatically)'
+              : 'Confirming transaction…'}
+          </span>
+        )}
+        {!isConfirming && isSuccess && txHash && (
           <span className="text-emerald-400">
             Success ·{' '}
             <a className="underline" href={txUrl(txHash)} target="_blank" rel="noreferrer">
