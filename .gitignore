@@ -29,6 +29,7 @@ packages/backend/data/
 # Frontend
 packages/frontend/.vite/
 packages/frontend/coverage/
+*.tsbuildinfo
 
 # Coverage
 lcov.info
