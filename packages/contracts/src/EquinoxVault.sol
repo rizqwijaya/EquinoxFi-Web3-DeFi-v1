@@ -225,11 +225,7 @@ contract EquinoxVault is ReentrancyGuard, Ownable {
     ///      contract holds enough reward tokens to cover the full stream so the
     ///      rate can never be set higher than the vault can actually pay.
     /// @param reward Amount of {rewardToken} to stream over the next period.
-    function notifyRewardAmount(uint256 reward)
-        external
-        onlyOwner
-        updateReward(address(0))
-    {
+    function notifyRewardAmount(uint256 reward) external onlyOwner updateReward(address(0)) {
         if (block.timestamp >= periodFinish) {
             rewardRate = reward / rewardsDuration;
         } else {

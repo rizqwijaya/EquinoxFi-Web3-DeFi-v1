@@ -264,8 +264,7 @@ contract EquinoxVaultTest is Test {
     ///         the vault. The nonReentrant guard must make the outer call revert.
     function test_Reentrancy_StakeReverts() public {
         ReentrantToken evil = new ReentrantToken();
-        EquinoxVault evilVault =
-            new EquinoxVault(address(evil), address(rewardToken), owner);
+        EquinoxVault evilVault = new EquinoxVault(address(evil), address(rewardToken), owner);
 
         evil.setVault(address(evilVault));
         evil.mint(address(this), 100 ether);

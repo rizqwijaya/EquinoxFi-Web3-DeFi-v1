@@ -29,16 +29,27 @@ export interface AppConfig {
   pollIntervalMs: number;
   /** True only when a real vault address is configured. */
   isConfigured: boolean;
+  // ── DEX (AMM) ──
+  pairAddress: Address | undefined;
+  dexDeployBlock: bigint;
+  /** True only when a real pair address is configured. */
+  isDexConfigured: boolean;
 }
 
 const rawVault = process.env.VAULT_ADDRESS;
+const rawPair = process.env.PAIR_ADDRESS;
+const rpcUrl = process.env.RPC_URL ?? process.env.SEPOLIA_RPC_URL ?? '';
 
 export const appConfig: AppConfig = {
-  rpcUrl: process.env.RPC_URL ?? process.env.SEPOLIA_RPC_URL ?? '',
+  rpcUrl,
   vaultAddress: bool(rawVault) ? (rawVault as Address) : undefined,
   deployBlock: BigInt(process.env.DEPLOY_BLOCK ?? '0'),
   databasePath: process.env.DATABASE_PATH ?? './data/equinoxfi.db',
   port: Number(process.env.PORT ?? 3001),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? 12_000),
-  isConfigured: bool(rawVault) && !!(process.env.RPC_URL ?? process.env.SEPOLIA_RPC_URL),
+  isConfigured: bool(rawVault) && !!rpcUrl,
+  pairAddress: bool(rawPair) ? (rawPair as Address) : undefined,
+  // Falls back to DEPLOY_BLOCK when a dedicated DEX deploy block isn't set.
+  dexDeployBlock: BigInt(process.env.DEX_DEPLOY_BLOCK ?? process.env.DEPLOY_BLOCK ?? '0'),
+  isDexConfigured: bool(rawPair) && !!rpcUrl,
 };

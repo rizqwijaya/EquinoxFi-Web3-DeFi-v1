@@ -1,4 +1,3 @@
-/** Landing/stake page: hero, swap-style stake card, and a compact pool summary. */
 import { StakeCard } from '../components/StakeCard';
 import { StatCard } from '../components/ui';
 import { useStats } from '../hooks';
@@ -29,14 +28,14 @@ export function StakePage() {
           <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
             <StatCard
               label="TVL"
-              value={data ? `${fmt(BigInt(data.totalStaked))}` : '—'}
+              value={data ? fmt(BigInt(data.totalStaked)) : '—'}
               sub="eSTAKE"
               accent
             />
             <StatCard label="Stakers" value={data ? data.totalStakers : '—'} />
             <StatCard
               label="Rewards paid"
-              value={data ? `${fmt(BigInt(data.totalRewardsPaid))}` : '—'}
+              value={data ? fmt(BigInt(data.totalRewardsPaid)) : '—'}
               sub="eRWD"
             />
           </div>

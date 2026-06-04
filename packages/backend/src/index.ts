@@ -18,14 +18,15 @@ import Fastify from 'fastify';
 import { isAddress, getAddress } from 'viem';
 import { appConfig } from './config.js';
 import { openDb } from './db.js';
-import { Indexer } from './indexer.js';
-import { equinoxVaultAbi } from './abi.js';
+import { Indexer, DexIndexer } from './indexer.js';
+import { equinoxVaultAbi, equinoxPairAbi } from './abi.js';
 
 const app = Fastify({ logger: true });
 const db = openDb(appConfig.databasePath);
 
-// Indexer is only started when a real vault address is configured.
+// Indexers only start when their respective addresses are configured.
 const indexer = appConfig.isConfigured ? new Indexer(appConfig, db) : null;
+const dexIndexer = appConfig.isDexConfigured ? new DexIndexer(appConfig, db) : null;
 
 app.get('/health', async () => ({
   status: 'ok',
@@ -83,18 +84,81 @@ app.get<{ Params: { address: string } }>('/stakers/:address/history', async (req
 
 app.get('/activity', async () => ({ events: db.getRecentActivity(25) }));
 
+// ── DEX (AMM) endpoints ──
+app.get('/dex/stats', async (_req, reply) => {
+  if (!dexIndexer || !appConfig.pairAddress) {
+    return reply.code(503).send({ error: 'dex indexer not configured (no PAIR_ADDRESS)' });
+  }
+  // Live reserves + token ordering from the pair contract.
+  const [reserves, token0, token1] = await Promise.all([
+    dexIndexer.client.readContract({
+      address: appConfig.pairAddress,
+      abi: equinoxPairAbi,
+      functionName: 'getReserves',
+    }),
+    dexIndexer.client.readContract({
+      address: appConfig.pairAddress,
+      abi: equinoxPairAbi,
+      functionName: 'token0',
+    }),
+    dexIndexer.client.readContract({
+      address: appConfig.pairAddress,
+      abi: equinoxPairAbi,
+      functionName: 'token1',
+    }),
+  ]);
+  const [reserve0, reserve1] = reserves as readonly [bigint, bigint];
+  const volume = db.getSwapVolume();
+  // Spot price of token0 in token1 terms (reserve1/reserve0), scaled to 1e18.
+  const price0In1 = reserve0 > 0n ? (reserve1 * 10n ** 18n) / reserve0 : 0n;
+
+  return {
+    token0,
+    token1,
+    reserve0: reserve0.toString(),
+    reserve1: reserve1.toString(),
+    price0In1: price0In1.toString(),
+    swapCount: db.getSwapCount(),
+    volume0In: volume.volume0In.toString(),
+    volume1In: volume.volume1In.toString(),
+  };
+});
+
+app.get('/dex/activity', async () => ({ swaps: db.getRecentSwaps(25) }));
+
+app.get<{ Params: { address: string } }>('/dex/:address/history', async (req, reply) => {
+  const { address } = req.params;
+  if (!isAddress(address)) {
+    return reply.code(400).send({ error: 'invalid address' });
+  }
+  return { address: getAddress(address), swaps: db.getSwapHistory(address, 50) };
+});
+
 async function main(): Promise<void> {
   if (indexer) {
     app.log.info('Backfilling vault events…');
     try {
       await indexer.backfill();
       indexer.startPolling();
-      app.log.info('Indexer running.');
+      app.log.info('Vault indexer running.');
     } catch (err) {
-      app.log.error({ err }, 'initial backfill failed; API will serve cached data');
+      app.log.error({ err }, 'initial vault backfill failed; API will serve cached data');
     }
   } else {
-    app.log.warn('No VAULT_ADDRESS configured — running API only, indexer idle.');
+    app.log.warn('No VAULT_ADDRESS configured — vault indexer idle.');
+  }
+
+  if (dexIndexer) {
+    app.log.info('Backfilling DEX swap events…');
+    try {
+      await dexIndexer.backfill();
+      dexIndexer.startPolling();
+      app.log.info('DEX indexer running.');
+    } catch (err) {
+      app.log.error({ err }, 'initial DEX backfill failed; API will serve cached data');
+    }
+  } else {
+    app.log.warn('No PAIR_ADDRESS configured — DEX indexer idle.');
   }
 
   try {
@@ -108,6 +172,7 @@ async function main(): Promise<void> {
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
     indexer?.stop();
+    dexIndexer?.stop();
     db.close();
     process.exit(0);
   });

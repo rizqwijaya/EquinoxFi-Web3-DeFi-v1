@@ -22,6 +22,21 @@ export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost
 
 export const isDeployed = VAULT_ADDRESS !== ZERO;
 
+// ── DEX (AMM) ──
+export const FACTORY_ADDRESS = addr(import.meta.env.VITE_FACTORY_ADDRESS);
+export const ROUTER_ADDRESS = addr(import.meta.env.VITE_ROUTER_ADDRESS);
+export const PAIR_ADDRESS = addr(import.meta.env.VITE_PAIR_ADDRESS);
+export const TOKEN_A_ADDRESS = addr(import.meta.env.VITE_TOKEN_A_ADDRESS);
+export const TOKEN_B_ADDRESS = addr(import.meta.env.VITE_TOKEN_B_ADDRESS);
+
+export const isDexDeployed = ROUTER_ADDRESS !== ZERO && PAIR_ADDRESS !== ZERO;
+
+/** DEX token metadata, keyed by address (lowercased), for symbol display. */
+export const TOKENS: Record<string, { symbol: string }> = {
+  [TOKEN_A_ADDRESS.toLowerCase()]: { symbol: 'eTKNA' },
+  [TOKEN_B_ADDRESS.toLowerCase()]: { symbol: 'eTKNB' },
+};
+
 export const wagmiConfig = createConfig({
   chains: [sepolia],
   connectors: [injected()],

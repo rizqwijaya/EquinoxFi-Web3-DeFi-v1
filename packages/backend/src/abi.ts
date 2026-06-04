@@ -44,3 +44,46 @@ export const equinoxVaultAbi = [
     outputs: [{ type: 'uint256' }],
   },
 ] as const;
+
+/**
+ * Minimal EquinoxPair ABI — the Swap event the DEX indexer backfills, plus the
+ * reserve/token views used to derive the live price and reserves.
+ */
+export const equinoxPairAbi = [
+  {
+    type: 'event',
+    name: 'Swap',
+    inputs: [
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'amount0In', type: 'uint256', indexed: false },
+      { name: 'amount1In', type: 'uint256', indexed: false },
+      { name: 'amount0Out', type: 'uint256', indexed: false },
+      { name: 'amount1Out', type: 'uint256', indexed: false },
+      { name: 'to', type: 'address', indexed: true },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'getReserves',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'reserve0', type: 'uint112' },
+      { name: 'reserve1', type: 'uint112' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'token0',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'token1',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'address' }],
+  },
+] as const;

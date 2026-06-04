@@ -1,12 +1,3 @@
-/**
- * Swap-style staking card (Uniswap-inspired layout, original styling).
- *
- * A single token-amount input with a MAX shortcut and a Stake/Unstake toggle.
- * The ERC-20 approval step is handled explicitly: when the vault allowance is
- * below the amount being staked, the primary button becomes "Approve" first.
- * Each action surfaces pending / confirming / success / error state with a
- * Sepolia Etherscan tx link.
- */
 import { useMemo, useState } from 'react';
 import {
   useAccount,
@@ -20,13 +11,28 @@ import { VAULT_ADDRESS, STAKING_TOKEN_ADDRESS } from '../config';
 import { fmt, txUrl } from '../format';
 import { useVaultPosition } from '../hooks';
 import { Spinner } from './ui';
+import { SettingsPopup, GearIcon } from './SettingsPopup';
 
-type Mode = 'stake' | 'unstake';
+type Mode = 'stake' | 'unstake' | 'claim';
 
+// ── Token badge ───────────────────────────────────────────────────────────────
+function TokenBadge({ symbol }: { symbol: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-full bg-midnight-light border border-white/8 px-3 py-1.5 shrink-0">
+      <span className="text-aurora text-sm">◇</span>
+      <span className="font-semibold text-sm">{symbol}</span>
+    </div>
+  );
+}
+
+// ── Main card ─────────────────────────────────────────────────────────────────
 export function StakeCard() {
   const { address } = useAccount();
   const [mode, setMode] = useState<Mode>('stake');
   const [amount, setAmount] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [slippage, setSlippage] = useState('0.5');
+  const [deadline, setDeadline] = useState('30');
 
   const { staked, earned } = useVaultPosition();
 
@@ -54,7 +60,6 @@ export function StakeCard() {
     }
   }, [amount]);
 
-  // Balance shown above the input depends on direction.
   const available = mode === 'stake' ? (walletBalance as bigint | undefined) : staked;
   const needsApproval = mode === 'stake' && (allowance ?? 0n) < parsed && parsed > 0n;
   const overBalance = parsed > (available ?? 0n);
@@ -66,14 +71,13 @@ export function StakeCard() {
   const setMax = () => available !== undefined && setAmount(fmt(available, 18, 18));
 
   const onPrimary = () => {
+    if (mode === 'claim') {
+      writeContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: 'claimReward', args: [] });
+      return;
+    }
     if (mode === 'stake') {
       if (needsApproval) {
-        writeContract({
-          address: STAKING_TOKEN_ADDRESS,
-          abi: erc20Abi,
-          functionName: 'approve',
-          args: [VAULT_ADDRESS, parsed],
-        });
+        writeContract({ address: STAKING_TOKEN_ADDRESS, abi: erc20Abi, functionName: 'approve', args: [VAULT_ADDRESS, parsed] });
       } else {
         writeContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: 'stake', args: [parsed] });
       }
@@ -82,104 +86,165 @@ export function StakeCard() {
     }
   };
 
-  const onClaim = () =>
-    writeContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: 'claimReward', args: [] });
-
   const primaryLabel = !address
     ? 'Connect wallet'
+    : mode === 'claim'
+    ? (earned ?? 0n) === 0n
+      ? 'No rewards yet'
+      : `Claim ${fmt(earned)} eRWD`
     : parsed === 0n
-      ? 'Enter an amount'
-      : overBalance
-        ? 'Insufficient balance'
-        : mode === 'stake'
-          ? needsApproval
-            ? 'Approve eSTAKE'
-            : 'Stake'
-          : 'Unstake';
+    ? 'Enter an amount'
+    : overBalance
+    ? 'Insufficient balance'
+    : mode === 'stake'
+    ? needsApproval
+      ? 'Approve eSTAKE'
+      : 'Stake'
+    : 'Unstake';
 
-  const primaryDisabled = !address || parsed === 0n || overBalance || busy;
+  const primaryDisabled =
+    !address ||
+    busy ||
+    (mode === 'claim' ? (earned ?? 0n) === 0n : parsed === 0n || overBalance);
+
+  // What the "receive" panel shows
+  const receiveLabel = mode === 'stake' ? 'You receive (staked)' : mode === 'unstake' ? 'You receive (wallet)' : 'You receive';
+  const receiveValue = mode === 'stake' ? (parsed > 0n ? fmt(parsed) : '0') : mode === 'unstake' ? (parsed > 0n ? fmt(parsed) : '0') : fmt(earned);
+  const receiveSymbol = mode === 'claim' ? 'eRWD' : mode === 'stake' ? 'eSTAKE' : 'eSTAKE';
+
+  const switchArrowLabel = mode === 'stake' ? '↓' : '↑';
 
   return (
     <div className="w-full max-w-md mx-auto card-glow rounded-3xl p-5 animate-fade-in">
-      {/* mode toggle */}
-      <div className="flex gap-1 rounded-xl bg-midnight/60 p-1 mb-4">
-        {(['stake', 'unstake'] as Mode[]).map((m) => (
+
+      {/* ── Tab row + Settings gear ── */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-1 rounded-xl bg-midnight/60 border border-white/5 p-1">
+          {(['stake', 'unstake', 'claim'] as Mode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); setAmount(''); reset(); }}
+              className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition ${
+                mode === m
+                  ? 'bg-indigo text-white shadow-lg shadow-indigo/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative">
           <button
-            key={m}
-            onClick={() => {
-              setMode(m);
-              setAmount('');
-              reset();
-            }}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold capitalize transition ${
-              mode === m ? 'bg-indigo text-white' : 'text-slate-400 hover:text-slate-200'
+            onClick={() => setShowSettings((v) => !v)}
+            className={`p-2 rounded-xl transition ${
+              showSettings ? 'text-aurora bg-aurora/10' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
             }`}
+            title="Settings"
           >
-            {m}
+            <GearIcon />
           </button>
-        ))}
+          {showSettings && (
+            <SettingsPopup
+              slippage={slippage}
+              setSlippage={setSlippage}
+              deadline={deadline}
+              setDeadline={setDeadline}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
+        </div>
       </div>
 
-      {/* amount input */}
-      <div className="rounded-2xl bg-midnight/60 border border-indigo/10 p-4">
-        <div className="flex justify-between text-xs text-slate-500 mb-2">
-          <span>{mode === 'stake' ? 'You stake' : 'You unstake'}</span>
-          <span>
-            Balance: {fmt(available)}{' '}
-            {address && available !== undefined && available > 0n && (
-              <button onClick={setMax} className="ml-1 text-aurora font-semibold hover:underline">
-                MAX
-              </button>
-            )}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <input
-            inputMode="decimal"
-            placeholder="0.0"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value.replace(/[^0-9.]/g, ''));
-              reset();
-            }}
-            className="w-full bg-transparent text-3xl font-semibold outline-none placeholder:text-slate-600"
-          />
-          <div className="flex items-center gap-2 rounded-full bg-midnight-light px-3 py-1.5 shrink-0">
-            <span className="text-aurora">◇</span>
-            <span className="font-semibold text-sm">eSTAKE</span>
+      {mode === 'claim' ? (
+        /* ── Claim mode: single reward panel ── */
+        <div className="rounded-2xl bg-midnight/60 border border-indigo/10 p-4 mb-3">
+          <div className="text-xs text-slate-500 mb-2">Claimable rewards</div>
+          <div className="flex items-center justify-between">
+            <span className="text-4xl font-bold text-aurora">{fmt(earned)}</span>
+            <TokenBadge symbol="eRWD" />
           </div>
         </div>
-      </div>
+      ) : (
+        /* ── Stake / Unstake: dual panel ── */
+        <div className="flex flex-col gap-1 mb-3">
+          {/* Top panel: input */}
+          <div className="rounded-2xl bg-midnight/60 border border-indigo/10 p-4">
+            <div className="flex justify-between text-xs text-slate-500 mb-2">
+              <span>{mode === 'stake' ? 'You stake' : 'You unstake'}</span>
+              <span>
+                Balance: {fmt(available)}{' '}
+                {address && available !== undefined && available > 0n && (
+                  <button onClick={setMax} className="ml-1 text-aurora font-semibold hover:underline">
+                    MAX
+                  </button>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                inputMode="decimal"
+                placeholder="0"
+                value={amount}
+                onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.]/g, '')); reset(); }}
+                className="w-full bg-transparent text-4xl font-bold outline-none placeholder:text-slate-600"
+              />
+              <TokenBadge symbol="eSTAKE" />
+            </div>
+          </div>
 
-      {/* primary action */}
+          {/* Switch arrow */}
+          <div className="flex justify-center -my-0.5 z-10">
+            <div className="rounded-xl bg-midnight border border-indigo/20 p-2 text-slate-400 text-sm select-none">
+              {switchArrowLabel}
+            </div>
+          </div>
+
+          {/* Bottom panel: receive (read-only) */}
+          <div className="rounded-2xl bg-midnight/40 border border-white/5 p-4">
+            <div className="text-xs text-slate-500 mb-2">{receiveLabel}</div>
+            <div className="flex items-center gap-3">
+              <span className={`text-4xl font-bold ${receiveValue === '0' ? 'text-slate-600' : 'text-slate-100'}`}>
+                {receiveValue}
+              </span>
+              <TokenBadge symbol={receiveSymbol} />
+            </div>
+            {mode === 'stake' && (
+              <div className="mt-2 text-xs text-slate-600">
+                Staked balance: {fmt(staked)} · Rewards: {fmt(earned)} eRWD
+              </div>
+            )}
+            {mode === 'unstake' && (
+              <div className="mt-2 text-xs text-slate-600">
+                Wallet balance after: {fmt((walletBalance as bigint | undefined))} + {fmt(parsed)} eSTAKE
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Primary button ── */}
       <button
         onClick={onPrimary}
         disabled={primaryDisabled}
-        className="mt-3 w-full rounded-2xl bg-gradient-to-r from-indigo to-indigo-bright py-3.5
-                   font-semibold transition hover:brightness-110 disabled:opacity-40
+        className="w-full rounded-2xl bg-gradient-to-r from-indigo to-indigo-bright py-4
+                   font-semibold text-base transition hover:brightness-110 disabled:opacity-40
                    disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {busy && <Spinner />}
         {primaryLabel}
       </button>
 
-      {/* claim row */}
-      <div className="mt-4 flex items-center justify-between rounded-2xl bg-midnight/40 px-4 py-3">
-        <div>
-          <div className="text-xs text-slate-500">Claimable rewards</div>
-          <div className="text-lg font-bold text-aurora">{fmt(earned)} eRWD</div>
+      {/* ── Slippage/deadline info strip ── */}
+      {mode !== 'claim' && parsed > 0n && (
+        <div className="mt-2 flex items-center justify-between text-xs text-slate-600 px-1">
+          <span>Max slippage: <span className="text-slate-500">{slippage}%</span></span>
+          <span>Deadline: <span className="text-slate-500">{deadline} min</span></span>
         </div>
-        <button
-          onClick={onClaim}
-          disabled={busy || (earned ?? 0n) === 0n}
-          className="rounded-xl bg-aurora text-midnight px-4 py-2 text-sm font-semibold
-                     hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Claim
-        </button>
-      </div>
+      )}
 
-      {/* tx feedback */}
+      {/* ── Tx feedback ── */}
       <div className="mt-3 min-h-[1.25rem] text-sm text-center">
         {isConfirming && <span className="text-aurora">Confirming transaction…</span>}
         {isSuccess && txHash && (
