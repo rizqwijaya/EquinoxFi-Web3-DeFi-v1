@@ -154,6 +154,7 @@ export class DexIndexer {
         amount1Out?: bigint;
       };
       this.db.insertSwap({
+        pair: log.address,
         sender: args.sender ?? '0x0000000000000000000000000000000000000000',
         recipient: args.to ?? '0x0000000000000000000000000000000000000000',
         amount0In: args.amount0In ?? 0n,

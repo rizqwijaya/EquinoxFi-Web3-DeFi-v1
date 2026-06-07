@@ -21,10 +21,44 @@ import {
   REWARD_TOKEN_ADDRESS,
   TOKEN_A_ADDRESS,
   TOKEN_B_ADDRESS,
+  WETH_ADDRESS,
+  PAIR_ADDRESS,
+  PAIR_WETH_A_ADDRESS,
+  PAIR_WETH_B_ADDRESS,
 } from '../config';
 import { fmt, txUrl } from '../format';
-import { useVaultPosition, useHistory, useSwapHistory } from '../hooks';
+import { useVaultPosition, useHistory, useSwapHistory, type SwapEvent } from '../hooks';
 import { Badge } from '../components/ui';
+
+/** Display symbol per token address (ETH for WETH). */
+const SWAP_SYMBOL: Record<string, string> = {
+  [TOKEN_A_ADDRESS.toLowerCase()]: 'eTKNA',
+  [TOKEN_B_ADDRESS.toLowerCase()]: 'eTKNB',
+  [WETH_ADDRESS.toLowerCase()]: 'ETH',
+};
+
+/** UniswapV2 token ordering: token0 is the lower address. */
+const sortPair = (a: Address, b: Address): [Address, Address] =>
+  a.toLowerCase() < b.toLowerCase() ? [a, b] : [b, a];
+
+/** pool address → [token0, token1], so a Swap's amount0/1 can be mapped to tokens. */
+const PAIR_TOKENS: Record<string, [Address, Address]> = {
+  [PAIR_ADDRESS.toLowerCase()]: sortPair(TOKEN_A_ADDRESS, TOKEN_B_ADDRESS),
+  [PAIR_WETH_A_ADDRESS.toLowerCase()]: sortPair(WETH_ADDRESS, TOKEN_A_ADDRESS),
+  [PAIR_WETH_B_ADDRESS.toLowerCase()]: sortPair(WETH_ADDRESS, TOKEN_B_ADDRESS),
+};
+
+/** "12.5 eTKNA → 49 eTKNB" for a swap row; falls back to the main pool. */
+function swapLabel(s: SwapEvent): string {
+  const [token0, token1] = PAIR_TOKENS[s.pair?.toLowerCase() ?? ''] ?? PAIR_TOKENS[PAIR_ADDRESS.toLowerCase()];
+  const sym = (a: Address) => SWAP_SYMBOL[a.toLowerCase()] ?? '???';
+  const zeroIn = BigInt(s.amount0In) > 0n; // token0 sold?
+  const inTok = zeroIn ? token0 : token1;
+  const outTok = zeroIn ? token1 : token0;
+  const inAmt = zeroIn ? s.amount0In : s.amount1In;
+  const outAmt = zeroIn ? s.amount1Out : s.amount0Out;
+  return `${fmt(BigInt(inAmt))} ${sym(inTok)} → ${fmt(BigInt(outAmt))} ${sym(outTok)}`;
+}
 
 /** Live ERC-20 balance for the connected account. */
 function useTokenBalance(token: Address, address?: Address) {
@@ -59,7 +93,7 @@ function BalanceTile({ symbol, name, value, accent }: { symbol: string; name: st
 /** Merged activity row shape (stake events + swaps) for the feed. */
 type FeedRow =
   | { type: 'stake'; kind: 'Staked' | 'Withdrawn' | 'RewardPaid'; amount: string; blockNumber: number; txHash: string }
-  | { type: 'swap'; blockNumber: number; txHash: string };
+  | { type: 'swap'; label: string; blockNumber: number; txHash: string };
 
 /** Short address with a copy-to-clipboard button + "Copied!" feedback. */
 function CopyAddress({ address, short }: { address: string; short: string }) {
@@ -113,7 +147,7 @@ export function PortfolioPage() {
       rows.push({ type: 'stake', kind: e.kind, amount: e.amount, blockNumber: e.blockNumber, txHash: e.txHash });
     }
     for (const s of swapHist?.swaps ?? []) {
-      rows.push({ type: 'swap', blockNumber: s.blockNumber, txHash: s.txHash });
+      rows.push({ type: 'swap', label: swapLabel(s), blockNumber: s.blockNumber, txHash: s.txHash });
     }
     return rows.sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 25);
   }, [stakeHist, swapHist]);
@@ -200,7 +234,7 @@ export function PortfolioPage() {
                   <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-indigo/20 text-indigo-bright">Swap</span>
                 )}
                 <span className="text-slate-300">
-                  {row.type === 'stake' ? `${fmt(BigInt(row.amount))} eSTAKE` : 'Token swap'}
+                  {row.type === 'stake' ? `${fmt(BigInt(row.amount))} eSTAKE` : row.label}
                 </span>
                 <span className="ml-auto text-xs text-slate-600">Block {row.blockNumber}</span>
                 <svg className="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24">

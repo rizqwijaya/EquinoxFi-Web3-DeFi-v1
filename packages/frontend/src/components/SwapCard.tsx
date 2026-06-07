@@ -12,6 +12,7 @@
  * primary button becomes "Approve" when allowance is short).
  */
 import { useMemo, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   useAccount,
   useBalance,
@@ -20,7 +21,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
-import { parseUnits, formatUnits } from 'viem';
+import { parseUnits, formatUnits, maxUint256 } from 'viem';
 import type { Address } from 'viem';
 import { erc20Abi, routerAbi } from '../abi';
 import {
@@ -57,6 +58,8 @@ type TokenMeta = {
   badge?: string;
   /** Tailwind gradient (`from-… to-…`) for the lettered coin. */
   grad?: string;
+  /** No pool yet — shown disabled with a "Coming soon" tag. */
+  comingSoon?: boolean;
 };
 
 // Full wallet catalogue shown in the picker, Uniswap-style: native ETH first,
@@ -64,8 +67,8 @@ type TokenMeta = {
 // wraps/unwraps it); the deployed pools are eTKNA⇄eTKNB, WETH⇄eTKNA, WETH⇄eTKNB.
 const TOKEN_CATALOG: TokenMeta[] = [
   { address: WETH_ADDRESS, symbol: 'ETH', name: 'Ethereum', native: true, img: ETH_ICON },
-  { address: REWARD_TOKEN_ADDRESS, symbol: 'eRWD', name: 'Equinox Reward', badge: 'eR', grad: 'from-indigo-bright to-indigo' },
-  { address: STAKING_TOKEN_ADDRESS, symbol: 'eSTAKE', name: 'Equinox Stake', badge: 'eS', grad: 'from-rose-500 to-rose-700' },
+  { address: REWARD_TOKEN_ADDRESS, symbol: 'eRWD', name: 'Equinox Reward', badge: 'eR', grad: 'from-indigo-bright to-indigo', comingSoon: true },
+  { address: STAKING_TOKEN_ADDRESS, symbol: 'eSTAKE', name: 'Equinox Stake', badge: 'eS', grad: 'from-rose-500 to-rose-700', comingSoon: true },
   { address: TOKEN_A_ADDRESS, symbol: 'eTKNA', name: 'Equinox Token A', badge: 'eA', grad: 'from-aurora to-aurora-dim' },
   { address: TOKEN_B_ADDRESS, symbol: 'eTKNB', name: 'Equinox Token B', badge: 'eB', grad: 'from-cyan-400 to-sky-600' },
 ];
@@ -185,14 +188,14 @@ function TokenSelector({
         )}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
-          className="fixed inset-0 z-[80] flex items-start justify-center bg-black/70 backdrop-blur-sm p-4 pt-24 sm:items-center sm:pt-4 animate-fade-in"
+          className="fixed inset-0 z-[80] flex items-start justify-center bg-black/30 backdrop-blur-sm p-4 pt-24 sm:items-center sm:pt-4 animate-fade-in"
           onClick={() => setOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex w-full max-w-[420px] max-h-[80vh] flex-col rounded-3xl border border-white/10 bg-midnight-light shadow-2xl shadow-black/60 animate-pop-in"
+            className="flex w-full max-w-[420px] max-h-[88vh] flex-col rounded-3xl border border-white/10 bg-midnight-light shadow-2xl shadow-black/60 animate-pop-in"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4">
@@ -238,12 +241,19 @@ function TokenSelector({
                   <button
                     key={t.address + t.symbol}
                     type="button"
+                    disabled={t.comingSoon}
                     onClick={() => {
+                      if (t.comingSoon) return;
                       onChange?.(t.address);
                       setOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-left cursor-pointer transition ${
-                      isSelected ? 'bg-indigo/15' : 'hover:bg-white/5'
+                    title={t.comingSoon ? 'Coming soon' : undefined}
+                    className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition ${
+                      t.comingSoon
+                        ? 'opacity-50 cursor-not-allowed'
+                        : isSelected
+                          ? 'bg-indigo/15 cursor-pointer'
+                          : 'hover:bg-white/5 cursor-pointer'
                     }`}
                   >
                     <TokenCoin meta={t} className="h-10 w-10" />
@@ -261,13 +271,20 @@ function TokenSelector({
                         {!t.native && <span className="ml-1.5 text-slate-600">{shortAddr(t.address)}</span>}
                       </div>
                     </div>
-                    <div className="ml-auto text-base font-medium text-slate-200">{bal}</div>
+                    {t.comingSoon ? (
+                      <span className="ml-auto rounded-full bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-400">
+                        Coming soon
+                      </span>
+                    ) : (
+                      <div className="ml-auto text-base font-medium text-slate-200">{bal}</div>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -290,6 +307,8 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
   const { address } = useAccount();
   const [tab, setTab] = useState<Tab>('swap');
   const [amount, setAmount] = useState('');
+  // True between an approval tx and its auto-fired swap (one-click approve+swap).
+  const [pendingSwap, setPendingSwap] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState('0.5');
   const [deadline, setDeadline] = useState('30');
@@ -384,6 +403,7 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
 
   const resetInput = () => {
     setAmount('');
+    setPendingSwap(false);
     reset();
   };
 
@@ -394,16 +414,8 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
     setAmount(fmt(((balanceIn as bigint) * BigInt(p)) / 100n, 18, 18));
   const setPreset = (whole: number) => setAmount(String(whole));
 
-  const onPrimary = () => {
-    if (needsApproval) {
-      writeContract({
-        address: tokenIn,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [ROUTER_ADDRESS, parsed],
-      });
-      return;
-    }
+  /** Fires the actual swap tx (native-in / native-out / token-token). */
+  const executeSwap = () => {
     if (minOut === undefined || !address) return;
     const deadlineTs = BigInt(Math.floor(Date.now() / 1000) + Number(deadline || '30') * 60);
 
@@ -436,6 +448,36 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
     });
   };
 
+  const onPrimary = () => {
+    if (needsApproval) {
+      // Clear any prior tx's success first, otherwise the auto-swap effect would
+      // fire immediately off the stale `isSuccess` instead of waiting for this
+      // approval. Then approve, and the effect fires the swap on confirm (1 click).
+      reset();
+      setPendingSwap(true);
+      // Approve max once so this token never needs approving again — subsequent
+      // swaps are a single confirmation (standard Uniswap allowance pattern).
+      writeContract({
+        address: tokenIn,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [ROUTER_ADDRESS, maxUint256],
+      });
+      return;
+    }
+    executeSwap();
+  };
+
+  // When the approval tx confirms, automatically submit the queued swap so the
+  // user doesn't have to click a second time (and think the swap already ran).
+  useEffect(() => {
+    if (isSuccess && pendingSwap) {
+      setPendingSwap(false);
+      executeSwap();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess, pendingSwap]);
+
   const primaryLabel = !address
     ? 'Connect wallet'
     : !routeOk
@@ -446,13 +488,15 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
           ? 'Insufficient balance'
           : quotedOut === undefined
             ? 'Fetching quote…'
-            : needsApproval
-              ? `Approve ${SYMBOL(tokenIn)}`
-              : tab === 'buy'
-                ? 'Buy'
-                : tab === 'sell'
-                  ? 'Sell'
-                  : 'Swap';
+            : pendingSwap
+              ? 'Approving…'
+              : busy
+                ? 'Confirming…'
+                : tab === 'buy'
+                  ? 'Buy'
+                  : tab === 'sell'
+                    ? 'Sell'
+                    : 'Swap';
 
   const primaryDisabled =
     !address || !routeOk || parsed === 0n || overBalance || busy || (!needsApproval && quotedOut === undefined);

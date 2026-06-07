@@ -101,6 +101,7 @@ export interface DexStats {
 }
 
 export interface SwapEvent {
+  pair: string;
   sender: string;
   recipient: string;
   amount0In: string;

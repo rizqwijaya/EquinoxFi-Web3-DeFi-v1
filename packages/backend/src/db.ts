@@ -52,6 +52,7 @@ export interface HistoryRow {
 }
 
 export interface SwapInsert {
+  pair: string;
   sender: string;
   recipient: string;
   amount0In: bigint;
@@ -64,6 +65,7 @@ export interface SwapInsert {
 }
 
 export interface SwapRow {
+  pair: string;
   sender: string;
   recipient: string;
   amount0In: string;
@@ -100,6 +102,7 @@ export function openDb(path: string): Db {
 
     CREATE TABLE IF NOT EXISTS swaps (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      pair        TEXT NOT NULL DEFAULT '', -- which pool emitted the Swap
       sender      TEXT NOT NULL,
       recipient   TEXT NOT NULL,
       amount0_in  TEXT NOT NULL,         -- uint256 as decimal string
@@ -114,6 +117,13 @@ export function openDb(path: string): Db {
     CREATE INDEX IF NOT EXISTS idx_swaps_sender ON swaps(sender);
     CREATE INDEX IF NOT EXISTS idx_swaps_recipient ON swaps(recipient);
   `);
+
+  // Migrate older DBs that predate the `pair` column (added 2026-06-07).
+  try {
+    sqlite.exec(`ALTER TABLE swaps ADD COLUMN pair TEXT NOT NULL DEFAULT ''`);
+  } catch {
+    // Column already exists — nothing to do.
+  }
 
   const insertStmt = sqlite.prepare(
     `INSERT OR IGNORE INTO events (kind, user, amount, block_number, log_index, tx_hash)
@@ -145,9 +155,9 @@ export function openDb(path: string): Db {
   // ── DEX (swap) statements ──
   const insertSwapStmt = sqlite.prepare(
     `INSERT OR IGNORE INTO swaps
-       (sender, recipient, amount0_in, amount1_in, amount0_out, amount1_out,
+       (pair, sender, recipient, amount0_in, amount1_in, amount0_out, amount1_out,
         block_number, log_index, tx_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const lastDexBlockStmt = sqlite.prepare(`SELECT value FROM meta WHERE key = 'last_dex_block'`);
   const setDexBlockStmt = sqlite.prepare(
@@ -156,7 +166,7 @@ export function openDb(path: string): Db {
   );
   const swapCountStmt = sqlite.prepare(`SELECT COUNT(*) AS n FROM swaps`);
   const swapVolumeStmt = sqlite.prepare(`SELECT amount0_in, amount1_in FROM swaps`);
-  const swapCols = `sender, recipient,
+  const swapCols = `pair, sender, recipient,
        amount0_in AS amount0In, amount1_in AS amount1In,
        amount0_out AS amount0Out, amount1_out AS amount1Out,
        block_number AS blockNumber, tx_hash AS txHash`;
@@ -222,6 +232,7 @@ export function openDb(path: string): Db {
     // ── DEX (swap) ──
     insertSwap(e) {
       insertSwapStmt.run(
+        e.pair.toLowerCase(),
         e.sender.toLowerCase(),
         e.recipient.toLowerCase(),
         e.amount0In.toString(),
