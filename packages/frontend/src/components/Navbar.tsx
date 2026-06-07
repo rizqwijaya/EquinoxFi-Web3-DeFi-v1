@@ -5,10 +5,10 @@ import { injected } from 'wagmi/connectors';
 import { sepolia } from 'wagmi/chains';
 
 const tabs = [
-  { to: '/', label: 'Swap' },
+  { to: '/swap', label: 'Swap' },
   { to: '/pool', label: 'Pool' },
   { to: '/stake', label: 'Stake' },
-  { to: '/analytics', label: 'Analytics' },
+  { to: '/portfolio', label: 'Portfolio' },
 ];
 
 function WalletMenu({ address, disconnect }: { address: string; disconnect: () => void }) {
@@ -113,9 +113,25 @@ export function Navbar() {
   const { disconnect } = useDisconnect();
   const [search, setSearch] = useState('');
 
+  // Transparent/glassy at the top of the page; solid once the user scrolls so
+  // content doesn't bleed through the bar (Uniswap-style header behaviour).
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-20 border-b border-white/5 bg-midnight/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+    <header
+      className={`sticky top-0 z-20 transition-colors duration-300 ${
+        scrolled
+          ? 'border-b border-white/5 bg-midnight'
+          : 'border-b border-transparent bg-transparent backdrop-blur-md'
+      }`}
+    >
+      <div className="relative flex w-full items-center gap-4 px-4 py-3 sm:px-6">
         {/* Logo */}
         <NavLink to="/" className="flex items-center gap-2 shrink-0">
           <span className="text-aurora text-xl leading-none">◇</span>
@@ -144,23 +160,25 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* Search bar */}
-        <div className="hidden md:flex flex-1 items-center gap-2 rounded-xl bg-midnight-light/50 border border-white/5 px-3 py-2 text-sm text-slate-400 hover:border-indigo/30 transition cursor-text">
-          <svg className="w-4 h-4 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M11 4a7 7 0 1 0 0 14A7 7 0 0 0 11 4zm-9 7a9 9 0 1 1 18 0 9 9 0 0 1-18 0zm14.293 4.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1-1.414 1.414l-3-3a1 1 0 0 1 0-1.414z"
-              fill="currentColor"
-              fillRule="evenodd"
-              clipRule="evenodd"
+        {/* Search bar — absolutely centered to the viewport */}
+        <div className="hidden lg:block absolute left-1/2 -translate-x-1/2 w-full max-w-sm px-4">
+          <div className="flex w-full items-center gap-2 rounded-xl bg-midnight-light/50 border border-white/5 px-3 py-2 text-sm text-slate-400 hover:border-indigo/30 transition cursor-text">
+            <svg className="w-4 h-4 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M11 4a7 7 0 1 0 0 14A7 7 0 0 0 11 4zm-9 7a9 9 0 1 1 18 0 9 9 0 0 1-18 0zm14.293 4.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1-1.414 1.414l-3-3a1 1 0 0 1 0-1.414z"
+                fill="currentColor"
+                fillRule="evenodd"
+                clipRule="evenodd"
+              />
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search tokens, pools…"
+              className="bg-transparent outline-none w-full placeholder:text-slate-600 text-slate-300"
             />
-          </svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tokens, pools…"
-            className="bg-transparent outline-none w-full placeholder:text-slate-600 text-slate-300"
-          />
-          <kbd className="hidden lg:inline text-xs border border-white/10 rounded px-1.5 py-0.5 text-slate-600">/</kbd>
+            <kbd className="hidden lg:inline text-xs border border-white/10 rounded px-1.5 py-0.5 text-slate-600">/</kbd>
+          </div>
         </div>
 
         {/* Right side */}

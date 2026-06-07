@@ -31,12 +31,24 @@ export default {
         spin: {
           to: { transform: 'rotate(360deg)' },
         },
+        'pop-in': {
+          '0%': { opacity: '0', transform: 'scale(0.92) translateY(6px)' },
+          '60%': { transform: 'scale(1.02)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%, 60%': { transform: 'translateX(-5px)' },
+          '40%, 80%': { transform: 'translateX(5px)' },
+        },
       },
       animation: {
         float: 'float 6s ease-in-out infinite',
         'pulse-slow': 'pulse-slow 4s ease-in-out infinite',
         'fade-in': 'fade-in 0.4s ease-out',
         spin: 'spin 1s linear infinite',
+        'pop-in': 'pop-in 0.45s cubic-bezier(0.34,1.56,0.64,1)',
+        shake: 'shake 0.45s ease-in-out',
       },
     },
   },

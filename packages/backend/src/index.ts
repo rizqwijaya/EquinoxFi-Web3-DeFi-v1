@@ -15,6 +15,7 @@
  * SQLite cache.
  */
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import { isAddress, getAddress } from 'viem';
 import { appConfig } from './config.js';
 import { openDb } from './db.js';
@@ -23,6 +24,11 @@ import { equinoxVaultAbi, equinoxPairAbi } from './abi.js';
 
 const app = Fastify({ logger: true });
 const db = openDb(appConfig.databasePath);
+
+// Allow the browser dApp (Vite dev server, any localhost port) to read the API.
+// Without this the server still answers 200, but the browser discards the
+// response cross-origin and the UI's stats/activity panels render empty.
+await app.register(cors, { origin: true });
 
 // Indexers only start when their respective addresses are configured.
 const indexer = appConfig.isConfigured ? new Indexer(appConfig, db) : null;
@@ -134,39 +140,39 @@ app.get<{ Params: { address: string } }>('/dex/:address/history', async (req, re
   return { address: getAddress(address), swaps: db.getSwapHistory(address, 50) };
 });
 
+/** Backfill once, then poll. Runs in the background so it never blocks listen. */
+async function runIndexer(
+  name: string,
+  inst: { backfill(): Promise<void>; startPolling(): void } | null,
+): Promise<void> {
+  if (!inst) {
+    app.log.warn(`${name} indexer idle (not configured).`);
+    return;
+  }
+  app.log.info(`Backfilling ${name} events…`);
+  try {
+    await inst.backfill();
+    app.log.info(`${name} indexer caught up.`);
+  } catch (err) {
+    app.log.error({ err }, `initial ${name} backfill failed; API serves cached data`);
+  }
+  // Poll regardless — transient backfill failures self-heal on the next tick.
+  inst.startPolling();
+}
+
 async function main(): Promise<void> {
-  if (indexer) {
-    app.log.info('Backfilling vault events…');
-    try {
-      await indexer.backfill();
-      indexer.startPolling();
-      app.log.info('Vault indexer running.');
-    } catch (err) {
-      app.log.error({ err }, 'initial vault backfill failed; API will serve cached data');
-    }
-  } else {
-    app.log.warn('No VAULT_ADDRESS configured — vault indexer idle.');
-  }
-
-  if (dexIndexer) {
-    app.log.info('Backfilling DEX swap events…');
-    try {
-      await dexIndexer.backfill();
-      dexIndexer.startPolling();
-      app.log.info('DEX indexer running.');
-    } catch (err) {
-      app.log.error({ err }, 'initial DEX backfill failed; API will serve cached data');
-    }
-  } else {
-    app.log.warn('No PAIR_ADDRESS configured — DEX indexer idle.');
-  }
-
+  // Listen first so /health, stats, and cached activity are available
+  // immediately; indexers then backfill in the background (can take minutes on
+  // a rate-limited RPC) without delaying the API.
   try {
     await app.listen({ port: appConfig.port, host: '0.0.0.0' });
   } catch (err) {
     app.log.error(err);
     process.exit(1);
   }
+
+  void runIndexer('vault', indexer);
+  void runIndexer('DEX', dexIndexer);
 }
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {

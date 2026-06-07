@@ -10,7 +10,7 @@ import { vaultAbi, erc20Abi } from '../abi';
 import { VAULT_ADDRESS, STAKING_TOKEN_ADDRESS } from '../config';
 import { fmt, txUrl } from '../format';
 import { useVaultPosition } from '../hooks';
-import { Spinner } from './ui';
+import { Spinner, TxStatus } from './ui';
 import { SettingsPopup, GearIcon } from './SettingsPopup';
 
 type Mode = 'stake' | 'unstake' | 'claim';
@@ -263,24 +263,17 @@ export function StakeCard() {
       )}
 
       {/* ── Tx feedback ── */}
-      <div className="mt-3 min-h-[1.25rem] text-sm text-center">
-        {isConfirming && (
-          <span className="text-aurora">
-            {pendingAction.current === 'approve'
-              ? 'Approving… (staking will follow automatically)'
-              : 'Confirming transaction…'}
-          </span>
-        )}
-        {!isConfirming && isSuccess && txHash && (
-          <span className="text-emerald-400">
-            Success ·{' '}
-            <a className="underline" href={txUrl(txHash)} target="_blank" rel="noreferrer">
-              view on Etherscan
-            </a>
-          </span>
-        )}
-        {error && <span className="text-rose-400">{error.message.split('\n')[0]}</span>}
-      </div>
+      <TxStatus
+        pending={isConfirming}
+        pendingLabel={
+          pendingAction.current === 'approve'
+            ? 'Approving… staking follows automatically'
+            : 'Confirming transaction…'
+        }
+        success={!isConfirming && isSuccess && !!txHash}
+        successHref={txHash ? txUrl(txHash) : undefined}
+        error={error ? error.message.split('\n')[0] : undefined}
+      />
     </div>
   );
 }

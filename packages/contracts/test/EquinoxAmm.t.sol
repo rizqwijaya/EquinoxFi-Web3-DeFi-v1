@@ -6,6 +6,7 @@ import { EquinoxFactory } from "../src/EquinoxFactory.sol";
 import { EquinoxRouter } from "../src/EquinoxRouter.sol";
 import { EquinoxPair } from "../src/EquinoxPair.sol";
 import { MockERC20 } from "../src/MockERC20.sol";
+import { WETH9 } from "../src/WETH9.sol";
 
 /// @title EquinoxAmmTest
 /// @notice Foundry suite for the EquinoxFi AMM (Factory / Pair / Router):
@@ -26,7 +27,7 @@ contract EquinoxAmmTest is Test {
 
     function setUp() public {
         factory = new EquinoxFactory();
-        router = new EquinoxRouter(address(factory));
+        router = new EquinoxRouter(address(factory), address(new WETH9()));
         tokenA = new MockERC20("Equinox Token A", "eTKNA", 18);
         tokenB = new MockERC20("Equinox Token B", "eTKNB", 18);
 

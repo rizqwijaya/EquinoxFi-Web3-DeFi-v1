@@ -1,6 +1,81 @@
 /** Small reusable presentational components shared across pages. */
 import type { ReactNode } from 'react';
 
+/**
+ * Transaction status banner shared by the Stake/Swap cards. Renders a colored,
+ * glowing pill (pending / success / error) instead of a flat line of text.
+ *
+ * Exactly one state shows at a time, decided by the caller:
+ *   - `pending`  → indigo pill with spinner (tx in flight / confirming);
+ *   - `success`  → emerald pill with check + Etherscan link;
+ *   - `error`    → rose pill with a warning glyph (shakes in).
+ */
+export function TxStatus({
+  pending,
+  pendingLabel,
+  success,
+  successHref,
+  error,
+}: {
+  pending?: boolean;
+  pendingLabel?: ReactNode;
+  success?: boolean;
+  successHref?: string;
+  error?: ReactNode;
+}) {
+  const show = pending || success || !!error;
+  return (
+    <div className={`mt-3 overflow-hidden transition-all duration-300 ${show ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'}`}>
+      {pending && (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-indigo-bright/30 bg-indigo/10 px-4 py-3 text-sm text-indigo-bright shadow-lg shadow-indigo/20 animate-fade-in">
+          <Spinner className="text-indigo-bright" />
+          <span className="font-medium">{pendingLabel ?? 'Confirming transaction…'}</span>
+          <span className="ml-auto flex gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-bright/70 animate-bounce [animation-delay:-0.3s]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-bright/70 animate-bounce [animation-delay:-0.15s]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-bright/70 animate-bounce" />
+          </span>
+        </div>
+      )}
+
+      {!pending && success && (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 shadow-lg shadow-emerald-500/20 animate-pop-in">
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-400/20">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+              <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span className="font-semibold">Transaction confirmed</span>
+          {successHref && (
+            <a
+              href={successHref}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto inline-flex items-center gap-1 rounded-lg bg-emerald-400/15 px-2.5 py-1 text-xs font-semibold hover:bg-emerald-400/25 transition"
+            >
+              Etherscan
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24">
+                <path d="M7 17L17 7m0 0H8m9 0v9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
+          )}
+        </div>
+      )}
+
+      {!pending && !success && error && (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 shadow-lg shadow-rose-500/20 animate-shake">
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-rose-400/20">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+              <path d="M12 8v5m0 3h.01" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span className="font-medium leading-tight line-clamp-2">{error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function StatCard({
   label,
   value,

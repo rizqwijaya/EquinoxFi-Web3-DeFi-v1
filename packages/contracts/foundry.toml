@@ -11,6 +11,9 @@ remappings = [
     "forge-std/=lib/forge-std/src/",
 ]
 
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+
 [fmt]
 line_length = 100
 tab_width = 4

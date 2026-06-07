@@ -4,10 +4,11 @@
  */
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
+import { HomePage } from './pages/HomePage';
 import { SwapPage } from './pages/SwapPage';
 import { PoolPage } from './pages/PoolPage';
 import { StakePage } from './pages/StakePage';
-import { AnalyticsPage } from './pages/AnalyticsPage';
+import { PortfolioPage } from './pages/PortfolioPage';
 
 export function App() {
   return (
@@ -23,10 +24,11 @@ export function App() {
 
         <main className="flex-1 w-full mx-auto max-w-6xl px-4 sm:px-6 pb-16">
           <Routes>
-            <Route path="/" element={<SwapPage />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/swap" element={<SwapPage />} />
             <Route path="/pool" element={<PoolPage />} />
             <Route path="/stake" element={<StakePage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
           </Routes>
         </main>
 

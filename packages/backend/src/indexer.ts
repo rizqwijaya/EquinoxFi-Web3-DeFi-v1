@@ -111,14 +111,15 @@ export class Indexer {
  */
 export class DexIndexer {
   readonly client: PublicClient;
-  private readonly pair: Address;
+  private readonly pairs: Address[];
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly cfg: AppConfig,
     private readonly db: Db,
   ) {
-    this.pair = cfg.pairAddress as Address;
+    // Primary pair + any native-ETH pools, so ETH swaps land in the same feed.
+    this.pairs = cfg.dexPairAddresses;
     this.client = createPublicClient({ chain: sepolia, transport: http(cfg.rpcUrl) });
   }
 
@@ -138,7 +139,7 @@ export class DexIndexer {
 
   private async indexRange(from: bigint, to: bigint): Promise<void> {
     const logs = await this.client.getLogs({
-      address: this.pair,
+      address: this.pairs,
       event: SWAP_EVENT,
       fromBlock: from,
       toBlock: to,

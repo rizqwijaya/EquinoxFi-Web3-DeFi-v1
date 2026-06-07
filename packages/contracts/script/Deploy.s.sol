@@ -7,6 +7,7 @@ import { EquinoxVault } from "../src/EquinoxVault.sol";
 import { EquinoxFactory } from "../src/EquinoxFactory.sol";
 import { EquinoxRouter } from "../src/EquinoxRouter.sol";
 import { MockERC20 } from "../src/MockERC20.sol";
+import { WETH9 } from "../src/WETH9.sol";
 
 /// @title Deploy
 /// @notice Deployment script for EquinoxFi (GENERAL.md Section 6). Deploys both
@@ -23,6 +24,12 @@ import { MockERC20 } from "../src/MockERC20.sol";
 contract Deploy is Script {
     /// @notice Reward tokens streamed in the first period.
     uint256 public constant REWARD_FUNDING = 100_000 ether;
+
+    /// @notice Length of the first reward streaming period. Set long so rewards
+    ///         accrue slowly: rewardRate = REWARD_FUNDING / REWARD_DURATION.
+    ///         At 350 days this yields ~0.0033 eRWD/sec (~50x slower than the
+    ///         original 7-day stream).
+    uint256 public constant REWARD_DURATION = 350 days;
 
     /// @notice Staking tokens minted to the deployer for testing the frontend.
     uint256 public constant DEPLOYER_STAKE_MINT = 1_000_000 ether;
@@ -45,6 +52,11 @@ contract Deploy is Script {
         MockERC20 rewardToken = new MockERC20("Equinox Reward", "eRWD", 18);
         EquinoxVault vault = new EquinoxVault(address(stakingToken), address(rewardToken), deployer);
 
+        // Stretch the streaming period before funding so the derived
+        // rewardRate (= funding / duration) is gentle. Allowed here because no
+        // period is active yet (periodFinish == 0).
+        vault.setRewardsDuration(REWARD_DURATION);
+
         // Seed the vault with reward tokens BEFORE notifyRewardAmount, which
         // checks the balance can cover the configured rate.
         rewardToken.mint(address(vault), REWARD_FUNDING);
@@ -53,7 +65,7 @@ contract Deploy is Script {
 
         // ── 2. AMM DEX ────────────────────────────────────────────────────────
         EquinoxFactory factory = new EquinoxFactory();
-        EquinoxRouter router = new EquinoxRouter(address(factory));
+        EquinoxRouter router = new EquinoxRouter(address(factory), address(new WETH9()));
 
         MockERC20 tokenA = new MockERC20("Equinox Token A", "eTKNA", 18);
         MockERC20 tokenB = new MockERC20("Equinox Token B", "eTKNB", 18);

@@ -6,6 +6,7 @@ import { console2 } from "forge-std/console2.sol";
 import { EquinoxFactory } from "../src/EquinoxFactory.sol";
 import { EquinoxRouter } from "../src/EquinoxRouter.sol";
 import { MockERC20 } from "../src/MockERC20.sol";
+import { WETH9 } from "../src/WETH9.sol";
 
 /// @title DeployDex
 /// @notice Deploys ONLY the AMM DEX (factory, router, two DEX tokens, and a
@@ -29,7 +30,7 @@ contract DeployDex is Script {
         vm.startBroadcast(deployerKey);
 
         EquinoxFactory factory = new EquinoxFactory();
-        EquinoxRouter router = new EquinoxRouter(address(factory));
+        EquinoxRouter router = new EquinoxRouter(address(factory), address(new WETH9()));
 
         MockERC20 tokenA = new MockERC20("Equinox Token A", "eTKNA", 18);
         MockERC20 tokenB = new MockERC20("Equinox Token B", "eTKNB", 18);

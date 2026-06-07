@@ -6,6 +6,12 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { EquinoxFactory } from "./EquinoxFactory.sol";
 import { EquinoxPair } from "./EquinoxPair.sol";
 
+/// @notice Minimal WETH interface used to wrap/unwrap native ETH around swaps.
+interface IWETH {
+    function deposit() external payable;
+    function withdraw(uint256 amount) external;
+}
+
 /// @title EquinoxRouter
 /// @author EquinoxFi
 /// @notice User-facing entrypoint to the EquinoxFi AMM, a trimmed port of
@@ -20,6 +26,15 @@ contract EquinoxRouter {
 
     /// @notice The factory used to create and locate pairs.
     EquinoxFactory public immutable factory;
+
+    /// @notice Wrapped-ETH used to route native-ETH swaps through ERC-20 pools.
+    address public immutable WETH;
+
+    /// @notice Reverts when a native-ETH path doesn't start/end with WETH.
+    error InvalidEthPath();
+
+    /// @notice Reverts when forwarding ETH to the recipient fails.
+    error EthTransferFailed();
 
     /// @notice Reverts when the transaction is mined after its deadline.
     error Expired();
@@ -39,8 +54,15 @@ contract EquinoxRouter {
     error InsufficientLiquidity();
 
     /// @param _factory Address of the deployed {EquinoxFactory}.
-    constructor(address _factory) {
+    /// @param _weth Address of the {WETH9} used for native-ETH swaps.
+    constructor(address _factory, address _weth) {
         factory = EquinoxFactory(_factory);
+        WETH = _weth;
+    }
+
+    /// @dev Accept ETH only from the WETH contract (during unwrap/withdraw).
+    receive() external payable {
+        assert(msg.sender == WETH);
     }
 
     /// @dev Reverts if the current block is past `deadline`.
@@ -120,6 +142,33 @@ contract EquinoxRouter {
         }
     }
 
+    /// @notice Adds liquidity to a `token`/WETH pair using native ETH (`msg.value`),
+    ///         creating the pair if needed.
+    /// @dev Resolves the optimal token/ETH split against current reserves, pulls
+    ///      the token from the caller, wraps the matching ETH into WETH, mints LP
+    ///      to `to`, and refunds any leftover ETH dust.
+    /// @return amountToken Actual `token` deposited.
+    /// @return amountETH Actual ETH (as WETH) deposited.
+    /// @return liquidity LP tokens minted to `to`.
+    function addLiquidityETH(
+        address token,
+        uint256 amountTokenDesired,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
+        address to,
+        uint256 deadline
+    ) external payable ensure(deadline) returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
+        (amountToken, amountETH) =
+            _addLiquidity(token, WETH, amountTokenDesired, msg.value, amountTokenMin, amountETHMin);
+        address pair = pairFor(token, WETH);
+        IERC20(token).safeTransferFrom(msg.sender, pair, amountToken);
+        IWETH(WETH).deposit{ value: amountETH }();
+        IERC20(WETH).safeTransfer(pair, amountETH);
+        liquidity = EquinoxPair(pair).mint(to);
+        // Refund any ETH not consumed by the optimal ratio.
+        if (msg.value > amountETH) _safeTransferETH(msg.sender, msg.value - amountETH);
+    }
+
     /// @notice Removes liquidity from the `tokenA`/`tokenB` pair.
     /// @dev Pulls the caller's LP tokens into the pair and burns them, returning
     ///      the underlying tokens to `to`. Reverts if either returned amount is
@@ -166,6 +215,51 @@ contract EquinoxRouter {
         if (amounts[amounts.length - 1] < amountOutMin) revert InsufficientOutputAmount();
         IERC20(path[0]).safeTransferFrom(msg.sender, pairFor(path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
+    }
+
+    /// @notice Swaps exact native ETH (`msg.value`) for at least `amountOutMin`
+    ///         of the final token. `path[0]` must be WETH.
+    /// @dev Wraps the incoming ETH into WETH, sends it to the first pair, then
+    ///      executes the hops, delivering the output token to `to`.
+    function swapExactETHForTokens(
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external payable ensure(deadline) returns (uint256[] memory amounts) {
+        if (path[0] != WETH) revert InvalidEthPath();
+        amounts = getAmountsOut(msg.value, path);
+        if (amounts[amounts.length - 1] < amountOutMin) revert InsufficientOutputAmount();
+        IWETH(WETH).deposit{ value: amounts[0] }();
+        IERC20(WETH).safeTransfer(pairFor(path[0], path[1]), amounts[0]);
+        _swap(amounts, path, to);
+    }
+
+    /// @notice Swaps exact `amountIn` of `path[0]` for at least `amountOutMin`
+    ///         native ETH. `path[path.length-1]` must be WETH.
+    /// @dev Pulls the input token, runs the hops into this router (receiving
+    ///      WETH), unwraps it, and forwards the ETH to `to`.
+    function swapExactTokensForETH(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external ensure(deadline) returns (uint256[] memory amounts) {
+        if (path[path.length - 1] != WETH) revert InvalidEthPath();
+        amounts = getAmountsOut(amountIn, path);
+        uint256 outAmount = amounts[amounts.length - 1];
+        if (outAmount < amountOutMin) revert InsufficientOutputAmount();
+        IERC20(path[0]).safeTransferFrom(msg.sender, pairFor(path[0], path[1]), amounts[0]);
+        _swap(amounts, path, address(this));
+        IWETH(WETH).withdraw(outAmount);
+        _safeTransferETH(to, outAmount);
+    }
+
+    /// @dev Forwards `amount` wei to `to`, reverting on failure.
+    function _safeTransferETH(address to, uint256 amount) private {
+        (bool ok,) = to.call{ value: amount }("");
+        if (!ok) revert EthTransferFailed();
     }
 
     /// @dev Executes the swap hops. For each pair, the input has already been

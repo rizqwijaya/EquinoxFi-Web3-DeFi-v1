@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="eq" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+  </defs>
+  <!-- deep-space rounded tile -->
+  <rect width="32" height="32" rx="8" fill="#0a0e27"/>
+  <!-- aurora diamond mark -->
+  <path d="M16 5 L27 16 L16 27 L5 16 Z" fill="none" stroke="url(#eq)" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M16 11 L21 16 L16 21 L11 16 Z" fill="url(#eq)"/>
+</svg>

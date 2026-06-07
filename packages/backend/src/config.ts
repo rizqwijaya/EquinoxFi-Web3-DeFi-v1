@@ -30,7 +30,10 @@ export interface AppConfig {
   /** True only when a real vault address is configured. */
   isConfigured: boolean;
   // ── DEX (AMM) ──
+  /** Primary pair (eTKNA/eTKNB) — used for live reserves/price in /dex/stats. */
   pairAddress: Address | undefined;
+  /** All pairs whose Swap events feed the swaps table (primary + ETH pools). */
+  dexPairAddresses: Address[];
   dexDeployBlock: bigint;
   /** True only when a real pair address is configured. */
   isDexConfigured: boolean;
@@ -39,6 +42,10 @@ export interface AppConfig {
 const rawVault = process.env.VAULT_ADDRESS;
 const rawPair = process.env.PAIR_ADDRESS;
 const rpcUrl = process.env.RPC_URL ?? process.env.SEPOLIA_RPC_URL ?? '';
+
+// Native-ETH pools (WETH/token) — indexed alongside the primary pair so ETH
+// swaps show up in swap count and activity.
+const ethPairs = [process.env.PAIR_WETH_A, process.env.PAIR_WETH_B].filter(bool) as Address[];
 
 export const appConfig: AppConfig = {
   rpcUrl,
@@ -49,6 +56,7 @@ export const appConfig: AppConfig = {
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? 12_000),
   isConfigured: bool(rawVault) && !!rpcUrl,
   pairAddress: bool(rawPair) ? (rawPair as Address) : undefined,
+  dexPairAddresses: bool(rawPair) ? [rawPair as Address, ...ethPairs] : [],
   // Falls back to DEPLOY_BLOCK when a dedicated DEX deploy block isn't set.
   dexDeployBlock: BigInt(process.env.DEX_DEPLOY_BLOCK ?? process.env.DEPLOY_BLOCK ?? '0'),
   isDexConfigured: bool(rawPair) && !!rpcUrl,

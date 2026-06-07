@@ -28,6 +28,8 @@ export const ROUTER_ADDRESS = addr(import.meta.env.VITE_ROUTER_ADDRESS);
 export const PAIR_ADDRESS = addr(import.meta.env.VITE_PAIR_ADDRESS);
 export const TOKEN_A_ADDRESS = addr(import.meta.env.VITE_TOKEN_A_ADDRESS);
 export const TOKEN_B_ADDRESS = addr(import.meta.env.VITE_TOKEN_B_ADDRESS);
+/** Wrapped ETH — native-ETH swaps route through this WETH/token pool. */
+export const WETH_ADDRESS = addr(import.meta.env.VITE_WETH_ADDRESS);
 
 export const isDexDeployed = ROUTER_ADDRESS !== ZERO && PAIR_ADDRESS !== ZERO;
 
