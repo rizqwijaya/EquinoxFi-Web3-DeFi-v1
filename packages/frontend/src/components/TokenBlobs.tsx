@@ -1,6 +1,6 @@
 /**
- * Decorative, blurred crypto-token coins scattered behind the homepage hero —
- * a nod to the Uniswap landing page's floating, out-of-focus token art.
+ * Decorative, blurred crypto-token coins scattered behind the homepage hero:
+ * a nod to a landing page's floating, out-of-focus token art.
  *
  * Purely cosmetic: `pointer-events-none` and `aria-hidden`, rendered behind the
  * hero content (which sits at `z-10`). Icons are pulled from the pinned
@@ -18,7 +18,7 @@ type Blob = {
   pos: string;
   /** Tailwind size utility, e.g. `h-20 w-20`. */
   size: string;
-  /** Tailwind blur utility — larger = further "out of focus". */
+  /** Tailwind blur utility: larger = further "out of focus". */
   blur: string;
   /** Tailwind opacity utility. */
   opacity: string;

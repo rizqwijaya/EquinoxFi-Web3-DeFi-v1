@@ -2,10 +2,10 @@
  * EquinoxFi landing / introduction page (the app's "/" entry point).
  *
  * Mirrors a Uniswap-style homepage while keeping Swap as the hero feature:
- *   1. Hero band — tagline + the live SwapCard (the protocol's primary action);
- *   2. Protocol stats panel — TVL / stakers / swaps / reward rate, live from the
- *      backend (`useStats` + `useDexStats`) with graceful "—" fallbacks;
- *   3. Feature grid — "Built for all the ways you swap", each card routing to a
+ *   1. Hero band: tagline + the live SwapCard (the protocol's primary action);
+ *   2. Protocol stats panel: TVL / stakers / swaps / reward rate, live from the
+ *      backend (`useStats` + `useDexStats`) with graceful "-" fallbacks;
+ *   3. Feature grid: "Built for all the ways you swap", each card routing to a
  *      real in-app page (Swap / Pool / Stake / Analytics);
  *   4. "Explore the EQUINOX-verse" resource links.
  *
@@ -94,10 +94,10 @@ export function HomePage() {
   const { data: stats } = useStats();
   const { data: dex } = useDexStats();
 
-  const tvl = stats ? fmt(BigInt(stats.totalStaked)) : '—';
-  const stakers = stats ? stats.totalStakers.toLocaleString() : '—';
-  const swaps = dex ? dex.swapCount.toLocaleString() : '—';
-  const rewardRate = stats ? `${fmt(BigInt(stats.rewardRate))}` : '—';
+  const tvl = stats ? fmt(BigInt(stats.totalStaked)) : '-';
+  const stakers = stats ? stats.totalStakers.toLocaleString() : '-';
+  const swaps = dex ? dex.swapCount.toLocaleString() : '-';
+  const rewardRate = stats ? `${fmt(BigInt(stats.rewardRate))}` : '-';
 
   return (
     <div className="animate-fade-in">
@@ -135,7 +135,7 @@ export function HomePage() {
           <p className="mt-5 text-slate-400 leading-relaxed">
             EquinoxFi brings swapping and staking into one place. Trade on the
             built-in AMM, provide liquidity, and stake to earn continuous on-chain
-            rewards — all non-custodial on Sepolia.
+            rewards, all non-custodial on Sepolia.
           </p>
           <Link
             to="/stake"
@@ -187,7 +187,7 @@ export function HomePage() {
             to="/stake"
             tag="Stake"
             title="Earn continuous yield."
-            body="Stake eSTAKE to accrue eRWD rewards every block. Claim or compound any time — fully non-custodial."
+            body="Stake eSTAKE to accrue eRWD rewards every block. Claim or compound any time, fully non-custodial."
             cta="Start staking"
             glyph={<span className="text-lg leading-none">✦</span>}
           />

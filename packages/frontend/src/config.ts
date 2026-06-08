@@ -28,7 +28,7 @@ export const ROUTER_ADDRESS = addr(import.meta.env.VITE_ROUTER_ADDRESS);
 export const PAIR_ADDRESS = addr(import.meta.env.VITE_PAIR_ADDRESS);
 export const TOKEN_A_ADDRESS = addr(import.meta.env.VITE_TOKEN_A_ADDRESS);
 export const TOKEN_B_ADDRESS = addr(import.meta.env.VITE_TOKEN_B_ADDRESS);
-/** Wrapped ETH — native-ETH swaps route through this WETH/token pool. */
+/** Wrapped ETH: native-ETH swaps route through this WETH/token pool. */
 export const WETH_ADDRESS = addr(import.meta.env.VITE_WETH_ADDRESS);
 /** Native-ETH pool pairs, for labelling swap activity per pool. */
 export const PAIR_WETH_A_ADDRESS = addr(import.meta.env.VITE_PAIR_WETH_A_ADDRESS);

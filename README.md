@@ -4,7 +4,7 @@
 
 ### *Stake. Earn. Repeat.*
 
-Stake an ERC-20, earn a second ERC-20 streamed linearly over time — plus a
+Stake an ERC-20, earn a second ERC-20 streamed linearly over time, plus a
 constant-product DEX to swap, buy, and sell. Contracts, indexer, and dApp in one
 TypeScript monorepo.
 
@@ -16,10 +16,10 @@ TypeScript monorepo.
 
 Two DeFi products side by side:
 
-- **Staking vault** — Synthetix `StakingRewards` accumulator pattern. Rewards
+- **Staking vault**: Synthetix `StakingRewards` accumulator pattern. Rewards
   accrue per-share at a fixed rate, claimed on demand. O(1) per interaction, so
   gas stays constant no matter how many users join.
-- **AMM DEX** — Factory + Pair + Router with constant-product (`x·y=k`)
+- **AMM DEX**: Factory + Pair + Router with constant-product (`x·y=k`)
   pricing, 0.3% fee, CREATE2-deterministic pairs. The dApp wraps it in a
   **Swap / Buy / Sell** UI plus a liquidity page.
 
@@ -29,7 +29,7 @@ Two DeFi products side by side:
 | [`packages/backend`](packages/backend) | Node, Fastify, viem, SQLite | Event indexer + REST API |
 | [`packages/frontend`](packages/frontend) | React, Vite, wagmi, Tailwind | Wallet dApp |
 
-**The contract is the source of truth** — funds and accounting live on-chain.
+**The contract is the source of truth.** Funds and accounting live on-chain.
 The backend indexes events into SQLite for fast historical reads (total stakers,
 rewards paid); live figures (TVL, reward rate, `earned`) are read straight from
 the chain.
@@ -45,4 +45,4 @@ the chain.
 | Reward token `eRWD` | [`0x4fd7848A…0eCe17D`](https://sepolia.etherscan.io/address/0x4fd7848Aed8fc0c2FCca33494e55A0B330eCe17D) |
 
 Factory / Router / eTKNA / eTKNB / pair are deployed by the same
-`Deploy.s.sol` — copy the logged addresses into `.env`.
+`Deploy.s.sol`; copy the logged addresses into `.env`.

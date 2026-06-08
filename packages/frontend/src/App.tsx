@@ -4,6 +4,7 @@
  */
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
+import { ScrollToTop } from './components/ScrollToTop';
 import { HomePage } from './pages/HomePage';
 import { SwapPage } from './pages/SwapPage';
 import { PoolPage } from './pages/PoolPage';
@@ -32,7 +33,7 @@ export function App() {
           </Routes>
         </main>
 
-
+        <ScrollToTop />
       </div>
     </BrowserRouter>
   );

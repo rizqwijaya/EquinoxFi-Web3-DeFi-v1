@@ -140,7 +140,7 @@ export function Navbar() {
           </span>
         </NavLink>
 
-        {/* Pill nav — desktop */}
+        {/* Pill nav: desktop */}
         <nav className="hidden sm:flex items-center gap-1 rounded-full bg-midnight-light/50 border border-white/5 p-1 shrink-0">
           {tabs.map((t) => (
             <NavLink
@@ -160,7 +160,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* Search bar — absolutely centered to the viewport */}
+        {/* Search bar: absolutely centered to the viewport */}
         <div className="hidden lg:block absolute left-1/2 -translate-x-1/2 w-full max-w-sm px-4">
           <div className="flex w-full items-center gap-2 rounded-xl bg-midnight-light/50 border border-white/5 px-3 py-2 text-sm text-slate-400 hover:border-indigo/30 transition cursor-text">
             <svg className="w-4 h-4 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none">

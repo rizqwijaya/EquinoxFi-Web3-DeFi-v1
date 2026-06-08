@@ -56,7 +56,7 @@ type TokenMeta = {
   badge?: string;
   /** Tailwind gradient (`from-… to-…`) for the lettered coin. */
   grad?: string;
-  /** No pool yet — shown disabled with a "Coming soon" tag. */
+  /** No pool yet: shown disabled with a "Coming soon" tag. */
   comingSoon?: boolean;
 };
 
@@ -299,7 +299,7 @@ function applySlippage(amountOut: bigint, slippagePct: string): bigint {
 
 /**
  * @param swapOnly  Strips the card chrome (no outer panel / gear) for the
- *                  homepage hero. Either way the card only swaps — no Buy/Sell.
+ *                  homepage hero. Either way the card only swaps, no Buy/Sell.
  */
 export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
   const { address } = useAccount();
@@ -444,7 +444,7 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
       // approval. Then approve, and the effect fires the swap on confirm (1 click).
       reset();
       setPendingSwap(true);
-      // Approve max once so this token never needs approving again — subsequent
+      // Approve max once so this token never needs approving again, subsequent
       // swaps are a single confirmation (standard Uniswap allowance pattern).
       writeContract({
         address: tokenIn,

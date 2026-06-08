@@ -3,7 +3,7 @@ import { formatUnits } from 'viem';
 
 /** Formats an 18-decimal base-unit bigint to a short human string. */
 export function fmt(value: bigint | undefined, decimals = 18, maxFrac = 4): string {
-  if (value === undefined) return '—';
+  if (value === undefined) return '-';
   const s = formatUnits(value, decimals);
   const [whole, frac = ''] = s.split('.');
   return frac ? `${whole}.${frac.slice(0, maxFrac)}` : whole;

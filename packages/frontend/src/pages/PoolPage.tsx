@@ -24,10 +24,10 @@ export function PoolPage() {
           <div className="mt-8 grid grid-cols-2 gap-3 max-w-md mx-auto">
             <StatCard
               label="eTKNA reserve"
-              value={data ? fmt(BigInt(data.reserve0)) : '—'}
+              value={data ? fmt(BigInt(data.reserve0)) : '-'}
               accent
             />
-            <StatCard label="eTKNB reserve" value={data ? fmt(BigInt(data.reserve1)) : '—'} />
+            <StatCard label="eTKNB reserve" value={data ? fmt(BigInt(data.reserve1)) : '-'} />
           </div>
         </>
       )}
