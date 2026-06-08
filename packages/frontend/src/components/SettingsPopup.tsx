@@ -1,19 +1,15 @@
 /**
- * Transaction settings popup (slippage tolerance + deadline), shared by the
- * Swap and Stake cards. The values flow back to the parent, which uses them to
- * compute `amountOutMin`/`amountMin` and the router `deadline` argument.
+ * Transaction settings popup (slippage tolerance), shared by the Swap and Stake
+ * cards. The value flows back to the parent to compute `amountOutMin`/`amountMin`.
+ * The router deadline is fixed internally (30 min), so it isn't exposed here.
  */
 export function SettingsPopup({
   slippage,
   setSlippage,
-  deadline,
-  setDeadline,
   onClose,
 }: {
   slippage: string;
   setSlippage: (v: string) => void;
-  deadline: string;
-  setDeadline: (v: string) => void;
   onClose: () => void;
 }) {
   return (
@@ -50,18 +46,6 @@ export function SettingsPopup({
             />
             <span className="text-slate-500 text-sm">%</span>
           </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="text-xs text-slate-500 mb-2">Transaction deadline</div>
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2">
-          <input
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value.replace(/[^0-9]/g, ''))}
-            className="w-full bg-transparent text-sm text-slate-300 outline-none"
-          />
-          <span className="text-slate-500 text-sm shrink-0">minutes</span>
         </div>
       </div>
     </div>

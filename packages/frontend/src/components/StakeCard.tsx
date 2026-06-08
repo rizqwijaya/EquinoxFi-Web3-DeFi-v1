@@ -32,7 +32,6 @@ export function StakeCard() {
   const [amount, setAmount] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState('0.5');
-  const [deadline, setDeadline] = useState('30');
 
   const { staked, earned } = useVaultPosition();
 
@@ -167,8 +166,6 @@ export function StakeCard() {
             <SettingsPopup
               slippage={slippage}
               setSlippage={setSlippage}
-              deadline={deadline}
-              setDeadline={setDeadline}
               onClose={() => setShowSettings(false)}
             />
           )}
@@ -254,11 +251,10 @@ export function StakeCard() {
         {primaryLabel}
       </button>
 
-      {/* ── Slippage/deadline info strip ── */}
+      {/* ── Slippage info strip ── */}
       {mode !== 'claim' && parsed > 0n && (
-        <div className="mt-2 flex items-center justify-between text-xs text-slate-600 px-1">
+        <div className="mt-2 flex items-center text-xs text-slate-600 px-1">
           <span>Max slippage: <span className="text-slate-500">{slippage}%</span></span>
-          <span>Deadline: <span className="text-slate-500">{deadline} min</span></span>
         </div>
       )}
 

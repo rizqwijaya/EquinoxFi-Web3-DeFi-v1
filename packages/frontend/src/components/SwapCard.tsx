@@ -38,8 +38,6 @@ import { useQuote } from '../hooks';
 import { Spinner, TxStatus } from './ui';
 import { SettingsPopup, GearIcon } from './SettingsPopup';
 
-type Tab = 'swap' | 'buy' | 'sell';
-
 const SYMBOL = (addr: Address) =>
   TOKENS[addr.toLowerCase()]?.symbol ?? metaOf(addr)?.symbol ?? '???';
 
@@ -300,29 +298,23 @@ function applySlippage(amountOut: bigint, slippagePct: string): bigint {
 }
 
 /**
- * @param swapOnly  Hide the Buy/Sell tabs and lock the card to the Swap action.
- *                  Used on the homepage hero, where only swapping is offered.
+ * @param swapOnly  Strips the card chrome (no outer panel / gear) for the
+ *                  homepage hero. Either way the card only swaps — no Buy/Sell.
  */
 export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
   const { address } = useAccount();
-  const [tab, setTab] = useState<Tab>('swap');
   const [amount, setAmount] = useState('');
   // True between an approval tx and its auto-fired swap (one-click approve+swap).
   const [pendingSwap, setPendingSwap] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState('0.5');
-  const [deadline, setDeadline] = useState('30');
 
-  // Swap tab: free token selection. Buy/Sell: direction locked.
+  // Free token selection on both sides; the flip arrow reverses direction.
   const [swapTokenIn, setSwapTokenIn] = useState<Address>(TOKEN_A_ADDRESS);
   const [swapTokenOut, setSwapTokenOut] = useState<Address>(TOKEN_B_ADDRESS);
 
-  const [tokenIn, tokenOut]: [Address, Address] =
-    tab === 'buy'
-      ? [TOKEN_B_ADDRESS, TOKEN_A_ADDRESS]
-      : tab === 'sell'
-        ? [TOKEN_A_ADDRESS, TOKEN_B_ADDRESS]
-        : [swapTokenIn, swapTokenOut];
+  const tokenIn = swapTokenIn;
+  const tokenOut = swapTokenOut;
 
   function flipSwap() {
     setSwapTokenIn(swapTokenOut);
@@ -409,15 +401,12 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
 
   const setMax = () =>
     balanceIn !== undefined && setAmount(fmt(balanceIn as bigint, 18, 18));
-  const setPercent = (p: number) =>
-    balanceIn !== undefined &&
-    setAmount(fmt(((balanceIn as bigint) * BigInt(p)) / 100n, 18, 18));
-  const setPreset = (whole: number) => setAmount(String(whole));
 
   /** Fires the actual swap tx (native-in / native-out / token-token). */
   const executeSwap = () => {
     if (minOut === undefined || !address) return;
-    const deadlineTs = BigInt(Math.floor(Date.now() / 1000) + Number(deadline || '30') * 60);
+    // Fixed 30-minute transaction deadline (no longer user-configurable).
+    const deadlineTs = BigInt(Math.floor(Date.now() / 1000) + 30 * 60);
 
     if (nativeIn) {
       // Selling native ETH: wrap via msg.value, path starts at WETH.
@@ -492,11 +481,7 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
               ? 'Approving…'
               : busy
                 ? 'Confirming…'
-                : tab === 'buy'
-                  ? 'Buy'
-                  : tab === 'sell'
-                    ? 'Sell'
-                    : 'Swap';
+                : 'Swap';
 
   const primaryDisabled =
     !address || !routeOk || parsed === 0n || overBalance || busy || (!needsApproval && quotedOut === undefined);
@@ -512,27 +497,10 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
         swapOnly ? '' : 'card-glow p-5'
       }`}
     >
-      {/* Tab row + settings gear — hidden in swap-only (Uniswap-style) mode */}
+      {/* Title + settings gear (hidden in the chrome-less homepage mode) */}
       {!swapOnly && (
         <div className="flex items-center justify-between mb-4">
-          <div className="flex gap-1 rounded-xl bg-midnight/60 border border-white/5 p-1">
-            {(['swap', 'buy', 'sell'] as Tab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  setTab(t);
-                  resetInput();
-                }}
-                className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition ${
-                  tab === t
-                    ? 'bg-indigo text-white shadow-lg shadow-indigo/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <span className="text-lg font-bold text-slate-100">Swap</span>
 
           <div className="relative">
             <button
@@ -550,8 +518,6 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
               <SettingsPopup
                 slippage={slippage}
                 setSlippage={setSlippage}
-                deadline={deadline}
-                setDeadline={setDeadline}
                 onClose={() => setShowSettings(false)}
               />
             )}
@@ -559,41 +525,17 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
         </div>
       )}
 
-      {/* Input panel */}
-      <div className={`rounded-2xl border border-indigo/10 ${swapOnly ? 'bg-midnight/70 p-4' : 'bg-midnight/60 p-4'}`}>
-        <div className="flex justify-between items-center text-xs text-slate-500 mb-2">
-          <span className={swapOnly ? 'text-sm text-slate-300' : ''}>
-            {swapOnly ? 'Sell' : tab === 'sell' ? 'You sell' : 'You pay'}
-          </span>
-          {swapOnly ? (
-            address && balanceIn !== undefined && (balanceIn as bigint) > 0n ? (
-              <div className="flex gap-1.5">
-                {[25, 50, 75].map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPercent(p)}
-                    className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 transition"
-                  >
-                    {p}%
-                  </button>
-                ))}
-                <button
-                  onClick={setMax}
-                  className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 transition"
-                >
-                  Max
-                </button>
-              </div>
-            ) : null
-          ) : (
-            <span>
-              Balance: {fmt(balanceIn as bigint | undefined)}{' '}
-              {address && balanceIn !== undefined && (balanceIn as bigint) > 0n && (
-                <button onClick={setMax} className="ml-1 text-aurora font-semibold hover:underline">
-                  MAX
-                </button>
-              )}
-            </span>
+      {/* Sell panel (Uniswap layout) */}
+      <div className="rounded-2xl bg-midnight/60 border border-indigo/10 p-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-slate-300">Sell</span>
+          {address && balanceIn !== undefined && (balanceIn as bigint) > 0n && (
+            <button
+              onClick={setMax}
+              className="text-xs font-semibold text-slate-500 hover:text-aurora transition"
+            >
+              Max
+            </button>
           )}
         </div>
         <div className="flex items-center gap-3">
@@ -607,90 +549,32 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
             }}
             className="w-full bg-transparent text-4xl font-bold outline-none placeholder:text-slate-600"
           />
-          <TokenSelector
-            selected={tokenIn}
-            onChange={tab === 'swap' ? handleTokenInChange : undefined}
-          />
+          <TokenSelector selected={tokenIn} onChange={handleTokenInChange} />
         </div>
-
-        {/* Swap-only: Uniswap-style USD value + balance footer */}
-        {swapOnly && (
-          <div className="flex justify-between items-center text-sm text-slate-500 mt-2">
-            <span>$0</span>
-            <span>
-              {fmt(balanceIn as bigint | undefined)} {SYMBOL(tokenIn)}
-            </span>
-          </div>
-        )}
-
-        {/* Buy presets */}
-        {!swapOnly && tab === 'buy' && (
-          <div className="flex gap-2 mt-3">
-            {[100, 300, 1000].map((v) => (
-              <button
-                key={v}
-                onClick={() => setPreset(v)}
-                className="flex-1 rounded-lg border border-white/10 py-1.5 text-sm text-slate-300 hover:border-aurora/40 transition"
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Sell percent shortcuts */}
-        {!swapOnly && tab === 'sell' && (
-          <div className="flex gap-2 mt-3">
-            {[25, 50, 75].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPercent(p)}
-                className="flex-1 rounded-lg border border-white/10 py-1.5 text-sm text-slate-300 hover:border-aurora/40 transition"
-              >
-                {p}%
-              </button>
-            ))}
-            <button
-              onClick={setMax}
-              className="flex-1 rounded-lg border border-white/10 py-1.5 text-sm text-slate-300 hover:border-aurora/40 transition"
-            >
-              Max
-            </button>
-          </div>
-        )}
+        <div className="flex justify-between items-center text-sm text-slate-500 mt-2">
+          <span>$0</span>
+          <span>
+            {fmt(balanceIn as bigint | undefined)} {SYMBOL(tokenIn)}
+          </span>
+        </div>
       </div>
 
-      {/* Direction button — swap-only mode mimics Uniswap's cut-out down arrow */}
-      <div className={`flex justify-center relative z-10 ${swapOnly ? '-my-3.5' : '-my-5'}`}>
+      {/* Cut-out down arrow straddling the two panels (Uniswap style) */}
+      <div className="flex justify-center relative z-10 -my-3.5">
         <button
-          onClick={() => tab === 'swap' && flipSwap()}
-          disabled={tab !== 'swap'}
-          className={
-            swapOnly
-              ? 'rounded-xl bg-midnight-light border-4 border-midnight p-2 text-slate-200 hover:bg-white/10 cursor-pointer transition'
-              : `rounded-xl bg-midnight border border-indigo/20 p-2 transition ${
-                  tab === 'swap'
-                    ? 'hover:text-aurora hover:border-aurora/40 cursor-pointer text-slate-400'
-                    : 'cursor-default text-slate-600'
-                }`
-          }
-          title={tab === 'swap' ? 'Flip direction' : undefined}
+          onClick={flipSwap}
+          className="rounded-xl bg-midnight-light border-4 border-midnight p-2 text-slate-200 hover:bg-white/10 cursor-pointer transition"
+          title="Flip direction"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
-            {swapOnly ? (
-              <path d="M12 5v14m0 0l-6-6m6 6l6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            ) : (
-              <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            )}
+            <path d="M12 5v14m0 0l-6-6m6 6l6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
 
-      {/* Output panel (read-only, from quote) */}
-      <div className={`rounded-2xl border border-white/5 px-4 pb-4 pt-7 ${swapOnly ? 'bg-midnight/70' : 'bg-midnight/40'}`}>
-        <div className={`text-slate-500 mb-2 ${swapOnly ? 'text-sm text-slate-300' : 'text-xs'}`}>
-          {swapOnly ? 'Buy' : 'You receive'}
-        </div>
+      {/* Buy panel (read-only, from quote) */}
+      <div className="rounded-2xl bg-midnight/40 border border-white/5 px-4 pb-4 pt-7">
+        <div className="text-sm text-slate-300 mb-2">Buy</div>
         <div className="flex items-center justify-between gap-3">
           <span
             className={`text-4xl font-bold ${
@@ -699,12 +583,9 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
           >
             {quotedOut !== undefined ? fmt(quotedOut) : '0'}
           </span>
-          <TokenSelector
-            selected={tokenOut}
-            onChange={tab === 'swap' ? handleTokenOutChange : undefined}
-          />
+          <TokenSelector selected={tokenOut} onChange={handleTokenOutChange} />
         </div>
-        {swapOnly && <div className="mt-2 text-sm text-slate-500">$0</div>}
+        <div className="mt-2 text-sm text-slate-500">$0</div>
         {price && (
           <div className="mt-2 text-xs text-slate-600">
             1 {SYMBOL(tokenIn)} ≈ {price} {SYMBOL(tokenOut)}
@@ -727,14 +608,11 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
         {primaryLabel}
       </button>
 
-      {/* Slippage/deadline strip (hidden in swap-only mode) */}
+      {/* Slippage strip (hidden in swap-only mode) */}
       {!swapOnly && parsed > 0n && (
-        <div className="mt-2 flex items-center justify-between text-xs text-slate-600 px-1">
+        <div className="mt-2 flex items-center text-xs text-slate-600 px-1">
           <span>
             Max slippage: <span className="text-slate-500">{slippage}%</span>
-          </span>
-          <span>
-            Deadline: <span className="text-slate-500">{deadline} min</span>
           </span>
         </div>
       )}
