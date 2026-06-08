@@ -5,14 +5,14 @@
  *   1. Hero band: tagline + the live SwapCard (the protocol's primary action);
  *   2. Protocol stats panel: TVL / stakers / swaps / reward rate, live from the
  *      backend (`useStats` + `useDexStats`) with graceful "-" fallbacks;
- *   3. Feature grid: "Built for all the ways you swap", each card routing to a
- *      real in-app page (Swap / Pool / Stake / Analytics);
+ *   3. Feature bento: asymmetric, per-tone cards + one gradient hero (Stake),
+ *      each routing to a real in-app page (Swap / Pool / Stake / Portfolio);
  *   4. "Explore the EQUINOX-verse" resource links.
  *
  * The plain swap-only view still lives at /swap; this page reuses the same
  * SwapCard component so both stay in sync.
  */
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { SwapCard } from '../components/SwapCard';
 import { TokenBlobs } from '../components/TokenBlobs';
@@ -32,38 +32,152 @@ function StatTile({ label, value, accent }: { label: string; value: ReactNode; a
   );
 }
 
-/** One card in the "Built for all the ways you swap" grid. */
+/** Shared CTA arrow. Slides right on card hover. */
+function ArrowRight({ className = '' }: { className?: string }) {
+  return (
+    <svg className={`w-4 h-4 transition-transform duration-300 group-hover:translate-x-1 ${className}`} fill="none" viewBox="0 0 24 24">
+      <path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Move the hover spotlight to follow the cursor (sets CSS vars on the card). */
+function spotlight(e: MouseEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+  el.style.setProperty('--my', `${e.clientY - r.top}px`);
+}
+
+/** Cursor-tracking glow + a diagonal shine sweep, revealed on card hover. */
+function HoverFx({ light = 'rgba(255,255,255,0.10)' }: { light?: string }) {
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{ background: `radial-gradient(16rem 16rem at var(--mx,50%) var(--my,50%), ${light}, transparent 65%)` }}
+      />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-1/2 left-0 h-[200%] w-1/4 -translate-x-[150%] rotate-12 bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[500%]" />
+      </div>
+    </>
+  );
+}
+
+/** Per-feature line icons. */
+const icons = {
+  swap: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 7h11m0 0l-3-3m3 3l-3 3M17 17H6m0 0l3 3m-3-3l3-3" />
+    </svg>
+  ),
+  pool: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3s6 5.5 6 10a6 6 0 1 1-12 0c0-4.5 6-10 6-10z" />
+    </svg>
+  ),
+  stake: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l8 4-8 4-8-4 8-4zM4 12l8 4 8-4M4 16.5l8 4 8-4" />
+    </svg>
+  ),
+  portfolio: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6" />
+    </svg>
+  ),
+};
+
+/** Accent classes per tone (kept as full literals so Tailwind keeps them). */
+const TONES = {
+  indigo: {
+    badge: 'bg-indigo/15 text-indigo-bright ring-indigo/30',
+    blob: 'bg-indigo/30',
+    border: 'hover:border-indigo/50',
+    cta: 'text-indigo-bright',
+    shadow: 'hover:shadow-indigo/25',
+    light: 'rgba(99,102,241,0.18)',
+  },
+  fuchsia: {
+    badge: 'bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-500/30',
+    blob: 'bg-fuchsia-500/30',
+    border: 'hover:border-fuchsia-400/50',
+    cta: 'text-fuchsia-300',
+    shadow: 'hover:shadow-fuchsia-500/25',
+    light: 'rgba(217,70,239,0.18)',
+  },
+  amber: {
+    badge: 'bg-amber-500/15 text-amber-300 ring-amber-500/30',
+    blob: 'bg-amber-500/30',
+    border: 'hover:border-amber-400/50',
+    cta: 'text-amber-300',
+    shadow: 'hover:shadow-amber-500/25',
+    light: 'rgba(245,158,11,0.18)',
+  },
+} as const;
+
+/** One bento card. `tone` colours it; `className` sets its grid span. */
 function FeatureCard({
-  to,
-  tag,
-  title,
-  body,
-  cta,
-  glyph,
+  to, tag, title, body, cta, icon, tone, className = '', delay = 0,
 }: {
-  to: string;
-  tag: string;
-  title: string;
-  body: string;
-  cta: string;
-  glyph: ReactNode;
+  to: string; tag: string; title: string; body: string; cta: string;
+  icon: ReactNode; tone: keyof typeof TONES; className?: string; delay?: number;
 }) {
+  const t = TONES[tone];
   return (
     <Link
       to={to}
-      className="group card-glow rounded-3xl p-6 flex flex-col transition hover:border-aurora/40 hover:-translate-y-0.5"
+      onMouseMove={spotlight}
+      style={{ animationDelay: `${delay}ms` }}
+      className={`group relative overflow-hidden card-glow rounded-3xl p-6 flex flex-col animate-pop-in transition duration-300 will-change-transform hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-2xl ${t.border} ${t.shadow} ${className}`}
     >
-      <div className="flex items-center gap-2 text-aurora text-sm font-semibold">
-        {glyph}
-        {tag}
+      <HoverFx light={t.light} />
+      <div className={`pointer-events-none absolute -top-12 -right-12 h-36 w-36 rounded-full blur-2xl opacity-50 transition-all duration-300 group-hover:opacity-100 group-hover:scale-125 ${t.blob}`} />
+      <div className="relative flex items-center gap-3">
+        <span className={`grid h-11 w-11 place-items-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 ${t.badge}`}>
+          {icon}
+        </span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors group-hover:text-slate-300">{tag}</span>
       </div>
-      <h3 className="mt-3 text-xl font-bold text-slate-100">{title}</h3>
-      <p className="mt-2 text-sm text-slate-400 leading-relaxed flex-1">{body}</p>
-      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-indigo-bright group-hover:gap-2 transition-all">
+      <h3 className="relative mt-4 text-xl font-bold text-slate-100 transition-colors group-hover:text-white">{title}</h3>
+      <p className="relative mt-2 text-sm text-slate-400 leading-relaxed flex-1">{body}</p>
+      <span className={`relative mt-5 inline-flex items-center gap-1.5 text-sm font-semibold ${t.cta}`}>
         {cta}
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
-          <path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <ArrowRight />
+      </span>
+    </Link>
+  );
+}
+
+/** The highlighted, gradient-filled feature (Stake). */
+function FeatureHero({ to, className = '', delay = 0 }: { to: string; className?: string; delay?: number }) {
+  return (
+    <Link
+      to={to}
+      onMouseMove={spotlight}
+      style={{ animationDelay: `${delay}ms` }}
+      className={`group relative overflow-hidden rounded-3xl p-7 flex flex-col animate-pop-in text-white shadow-xl shadow-indigo/30 transition duration-300 will-change-transform hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-2xl hover:shadow-indigo/40 bg-gradient-to-br from-indigo via-indigo-bright to-aurora-dim ${className}`}
+    >
+      <HoverFx light="rgba(255,255,255,0.16)" />
+      <div className="pointer-events-none absolute -bottom-16 -right-16 h-52 w-52 rounded-full bg-white/10 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+      <div className="pointer-events-none absolute top-8 right-8 h-28 w-28 rounded-full border border-white/15 transition-transform duration-500 group-hover:scale-125" />
+      <div className="relative flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 ring-1 ring-white/30">
+          {icons.stake}
+        </span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-white/90">Stake</span>
+        <span className="ml-auto rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider">
+          Popular
+        </span>
+      </div>
+      <h3 className="relative mt-5 text-2xl font-bold leading-tight">Earn continuous yield.</h3>
+      <p className="relative mt-2 text-sm text-white/80 leading-relaxed flex-1">
+        Stake eSTAKE to accrue eRWD rewards every block. Claim or compound any
+        time, fully non-custodial.
+      </p>
+      <span className="relative mt-6 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur transition-all group-hover:gap-3 group-hover:bg-white/25">
+        Start staking
+        <ArrowRight />
       </span>
     </Link>
   );
@@ -161,43 +275,48 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── Feature grid ───────────────────────────────────────────────── */}
+      {/* ── Feature bento ──────────────────────────────────────────────── */}
       <section className="mt-24">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          Built for all the ways you DeFi
-        </h2>
-        <div className="mt-8 grid sm:grid-cols-2 gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Built for all the ways you DeFi
+          </h2>
+          <span className="text-sm text-slate-500">Swap · Pool · Stake · Track</span>
+        </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-6">
           <FeatureCard
             to="/swap"
+            tone="indigo"
             tag="Swap"
             title="Trade in seconds."
             body="Swap eTKNA and eTKNB instantly with live quotes, slippage controls, and one-tap approvals on the EquinoxFi AMM."
             cta="Open swap"
-            glyph={<span className="text-lg leading-none">⇄</span>}
+            icon={icons.swap}
+            className="sm:col-span-4"
+            delay={0}
           />
+          <FeatureHero to="/stake" className="sm:col-span-2" delay={80} />
           <FeatureCard
             to="/pool"
+            tone="fuchsia"
             tag="Pool"
             title="Provide liquidity."
             body="Add liquidity to the pair, watch live reserves, and power on-chain trading for the whole protocol."
             cta="Explore pool"
-            glyph={<span className="text-lg leading-none">◇</span>}
-          />
-          <FeatureCard
-            to="/stake"
-            tag="Stake"
-            title="Earn continuous yield."
-            body="Stake eSTAKE to accrue eRWD rewards every block. Claim or compound any time, fully non-custodial."
-            cta="Start staking"
-            glyph={<span className="text-lg leading-none">✦</span>}
+            icon={icons.pool}
+            className="sm:col-span-3"
+            delay={160}
           />
           <FeatureCard
             to="/portfolio"
+            tone="amber"
             tag="Portfolio"
             title="Track your position."
             body="See your balances, staked principal, claimable rewards, and full activity history in one place."
             cta="View portfolio"
-            glyph={<span className="text-lg leading-none">▦</span>}
+            icon={icons.portfolio}
+            className="sm:col-span-3"
+            delay={240}
           />
         </div>
       </section>
