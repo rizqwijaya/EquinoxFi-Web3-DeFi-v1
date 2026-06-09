@@ -58,7 +58,7 @@ function HoverFx({ light = 'rgba(255,255,255,0.10)' }: { light?: string }) {
         style={{ background: `radial-gradient(16rem 16rem at var(--mx,50%) var(--my,50%), ${light}, transparent 65%)` }}
       />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-1/2 left-0 h-[200%] w-1/4 -translate-x-[150%] rotate-12 bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[500%]" />
+        <div className="absolute -top-1/2 left-0 h-[200%] w-1/4 -translate-x-[150%] rotate-12 bg-gradient-to-r from-transparent via-white/15 to-transparent group-hover:translate-x-[500%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-out" />
       </div>
     </>
   );
