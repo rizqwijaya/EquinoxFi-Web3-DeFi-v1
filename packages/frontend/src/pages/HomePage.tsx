@@ -17,16 +17,43 @@ import { Link } from 'react-router-dom';
 import { SwapCard } from '../components/SwapCard';
 import { TokenBlobs } from '../components/TokenBlobs';
 import { useStats, useDexStats } from '../hooks';
-import { fmt } from '../format';
+import { toNum } from '../format';
 import { isDexDeployed } from '../config';
+import { AnimatedNumber } from '../components/ui';
 
-/** One protocol KPI inside the stats panel. */
-function StatTile({ label, value, accent }: { label: string; value: ReactNode; accent?: boolean }) {
+/** Accent classes per KPI tile (full literals so Tailwind keeps them). */
+const STAT_TONE = {
+  aurora: { text: 'text-aurora', chip: 'bg-aurora/15 text-aurora ring-aurora/30', border: 'hover:border-aurora/40', glow: 'hover:shadow-aurora/20' },
+  indigo: { text: 'text-slate-100', chip: 'bg-indigo/15 text-indigo-bright ring-indigo/30', border: 'hover:border-indigo/40', glow: 'hover:shadow-indigo/20' },
+  fuchsia: { text: 'text-slate-100', chip: 'bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-500/30', border: 'hover:border-fuchsia-400/40', glow: 'hover:shadow-fuchsia-500/20' },
+  amber: { text: 'text-amber-300', chip: 'bg-amber-500/15 text-amber-300 ring-amber-500/30', border: 'hover:border-amber-400/40', glow: 'hover:shadow-amber-500/20' },
+} as const;
+
+/** One protocol KPI: icon chip + animated count-up, hover-lift, staggered in. */
+function StatTile({
+  label, value, decimals = 0, fixed = false, loading, icon, tone, delay = 0,
+}: {
+  label: string; value: number; decimals?: number; fixed?: boolean;
+  loading?: boolean; icon: ReactNode; tone: keyof typeof STAT_TONE; delay?: number;
+}) {
+  const t = STAT_TONE[tone];
   return (
-    <div className="bg-midnight/50 rounded-2xl border border-white/5 px-5 py-4">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={`mt-2 text-3xl font-bold ${accent ? 'text-aurora' : 'text-slate-100'}`}>
-        {value}
+    <div
+      style={{ animationDelay: `${delay}ms`, animationFillMode: 'backwards' }}
+      className={`group bg-midnight/50 rounded-2xl border border-white/5 px-5 py-4 animate-pop-in transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${t.border} ${t.glow}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-slate-500">{label}</div>
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 ${t.chip}`}>
+          {icon}
+        </span>
+      </div>
+      <div className={`mt-2 text-3xl font-bold tabular-nums ${t.text}`}>
+        {loading ? (
+          <span className="text-slate-600">–</span>
+        ) : (
+          <AnimatedNumber value={value} decimals={decimals} fixed={fixed} />
+        )}
       </div>
     </div>
   );
@@ -84,6 +111,31 @@ const icons = {
   portfolio: (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6" />
+    </svg>
+  ),
+};
+
+/** Compact (w-4) glyphs for the KPI tiles. */
+const statIcons = {
+  tvl: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  ),
+  stakers: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M16 5.2a3 3 0 0 1 0 5.6M22 20v-1a5 5 0 0 0-3-4.6" />
+    </svg>
+  ),
+  swaps: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 7h11m0 0l-3-3m3 3l-3 3M17 17H6m0 0l3 3m-3-3l3-3" />
+    </svg>
+  ),
+  reward: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
     </svg>
   ),
 };
@@ -238,10 +290,10 @@ export function HomePage() {
   const { data: stats } = useStats();
   const { data: dex } = useDexStats();
 
-  const tvl = stats ? fmt(BigInt(stats.totalStaked)) : '-';
-  const stakers = stats ? stats.totalStakers.toLocaleString() : '-';
-  const swaps = dex ? dex.swapCount.toLocaleString() : '-';
-  const rewardRate = stats ? `${fmt(BigInt(stats.rewardRate))}` : '-';
+  const tvl = stats ? toNum(BigInt(stats.totalStaked)) : 0;
+  const stakers = stats ? stats.totalStakers : 0;
+  const swaps = dex ? dex.swapCount : 0;
+  const rewardRate = stats ? toNum(BigInt(stats.rewardRate)) : 0;
 
   return (
     <div className="animate-fade-in">
@@ -269,7 +321,14 @@ export function HomePage() {
       {/* ── Protocol pitch + live stats ────────────────────────────────── */}
       <section className="mt-20 grid lg:grid-cols-2 gap-10 items-center">
         <div>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-400">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-aurora opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-aurora" />
+            </span>
+            Live on Sepolia testnet
+          </div>
+          <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
             DeFi yield, powered by{' '}
             <span className="bg-gradient-to-r from-indigo-bright to-aurora bg-clip-text text-transparent">
               EquinoxFi
@@ -281,26 +340,46 @@ export function HomePage() {
             built-in AMM, provide liquidity, and stake to earn continuous on-chain
             rewards, all non-custodial on Sepolia.
           </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {['Non-custodial', 'Continuous rewards', 'Built-in AMM'].map((f) => (
+              <span
+                key={f}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-midnight/50 px-3 py-1.5 text-xs font-medium text-slate-300"
+              >
+                <svg className="h-3.5 w-3.5 text-aurora" fill="none" viewBox="0 0 24 24">
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {f}
+              </span>
+            ))}
+          </div>
           <Link
             to="/stake"
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo to-indigo-bright px-6 py-3 text-sm font-semibold transition hover:brightness-110 shadow-lg shadow-indigo/30"
+            className="group relative mt-7 inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-indigo to-indigo-bright px-6 py-3 text-sm font-semibold transition hover:brightness-110 shadow-lg shadow-indigo/30"
           >
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             Start earning
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24">
               <path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
         </div>
 
-        <div className="card-glow rounded-3xl p-2">
-          <div className="px-4 py-3 text-sm font-semibold text-slate-300 flex items-center gap-2">
-            <span className="text-aurora">●</span> Protocol stats
+        <div className="relative overflow-hidden card-glow rounded-3xl p-2">
+          <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-aurora/10 blur-3xl" />
+          <div className="relative flex items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-300">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-aurora opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-aurora" />
+            </span>
+            Protocol stats
+            <span className="ml-auto text-[11px] font-medium uppercase tracking-wider text-slate-500">Live · Sepolia</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 p-2">
-            <StatTile label="Total value locked" value={tvl} accent />
-            <StatTile label="Total stakers" value={stakers} />
-            <StatTile label="All-time swaps" value={swaps} />
-            <StatTile label="Reward rate (eRWD/s)" value={rewardRate} />
+          <div className="relative grid grid-cols-2 gap-2 p-2">
+            <StatTile label="Total value locked" value={tvl} loading={!stats} icon={statIcons.tvl} tone="aurora" delay={0} />
+            <StatTile label="Total stakers" value={stakers} loading={!stats} icon={statIcons.stakers} tone="indigo" delay={80} />
+            <StatTile label="All-time swaps" value={swaps} loading={!dex} icon={statIcons.swaps} tone="fuchsia" delay={160} />
+            <StatTile label="Reward rate (eRWD/s)" value={rewardRate} decimals={4} fixed loading={!stats} icon={statIcons.reward} tone="amber" delay={240} />
           </div>
         </div>
       </section>
