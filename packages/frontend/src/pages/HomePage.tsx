@@ -183,21 +183,51 @@ function FeatureHero({ to, className = '', delay = 0 }: { to: string; className?
   );
 }
 
-/** One row in the "Explore" resource list. */
-function ExploreRow({ icon, title, body, href }: { icon: ReactNode; title: string; body: string; href: string }) {
+/** Accent classes per Explore tone (kept as full literals for Tailwind). */
+const EXPLORE_TONES = {
+  aurora: {
+    badge: 'bg-aurora/15 text-aurora ring-aurora/30',
+    blob: 'bg-aurora/30',
+    border: 'hover:border-aurora/50',
+    shadow: 'hover:shadow-aurora/20',
+    light: 'rgba(45,212,191,0.18)',
+  },
+  fuchsia: {
+    badge: 'bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-500/30',
+    blob: 'bg-fuchsia-500/30',
+    border: 'hover:border-fuchsia-400/50',
+    shadow: 'hover:shadow-fuchsia-500/20',
+    light: 'rgba(217,70,239,0.18)',
+  },
+} as const;
+
+/** One resource card in the "Explore" grid. Mirrors the feature bento FX. */
+function ExploreCard({
+  icon, title, body, href, tone, delay = 0,
+}: {
+  icon: ReactNode; title: string; body: string; href: string;
+  tone: keyof typeof EXPLORE_TONES; delay?: number;
+}) {
+  const t = EXPLORE_TONES[tone];
   return (
     <a
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="group flex items-center gap-4 border-t border-white/5 py-5 transition hover:bg-white/[0.02] px-2 -mx-2 rounded-xl"
+      onMouseMove={spotlight}
+      style={{ animationDelay: `${delay}ms` }}
+      className={`group relative overflow-hidden card-glow rounded-3xl p-6 flex items-center gap-4 animate-pop-in transition duration-300 will-change-transform hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-2xl ${t.border} ${t.shadow}`}
     >
-      <span className="text-aurora shrink-0">{icon}</span>
-      <div className="flex-1">
-        <div className="font-semibold text-slate-100">{title}</div>
-        <div className="text-sm text-slate-500">{body}</div>
+      <HoverFx light={t.light} />
+      <div className={`pointer-events-none absolute -top-12 -right-12 h-36 w-36 rounded-full blur-2xl opacity-50 transition-all duration-300 group-hover:opacity-100 group-hover:scale-125 ${t.blob}`} />
+      <span className={`relative grid h-12 w-12 shrink-0 place-items-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 ${t.badge}`}>
+        {icon}
+      </span>
+      <div className="relative flex-1">
+        <div className="font-semibold text-slate-100 transition-colors group-hover:text-white">{title}</div>
+        <div className="mt-1 text-sm text-slate-400 leading-relaxed">{body}</div>
       </div>
-      <svg className="w-4 h-4 text-slate-600 group-hover:text-aurora transition" fill="none" viewBox="0 0 24 24">
+      <svg className="relative w-4 h-4 shrink-0 text-slate-600 transition-all duration-300 group-hover:text-white group-hover:translate-x-1 group-hover:-translate-y-1" fill="none" viewBox="0 0 24 24">
         <path d="M7 17L17 7m0 0H8m9 0v9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </a>
@@ -324,21 +354,25 @@ export function HomePage() {
       {/* ── Explore resources ──────────────────────────────────────────── */}
       <section className="mt-24">
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Explore the EquinoxFi-verse</h2>
-        <div className="mt-6">
-          <ExploreRow
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <ExploreCard
             href="https://sepolia.etherscan.io"
+            tone="aurora"
             title="Block explorer"
             body="Verify every contract and transaction on Sepolia Etherscan."
+            delay={0}
             icon={
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24">
                 <path d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             }
           />
-          <ExploreRow
+          <ExploreCard
             href="https://sepoliafaucet.com"
+            tone="fuchsia"
             title="Testnet faucet"
             body="Grab free Sepolia ETH to pay gas and start testing."
+            delay={80}
             icon={
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24">
                 <path d="M12 3v3m0 12v3m9-9h-3M6 12H3m13.5-6.5L14 8m-6.5-2.5L10 8m6.5 8.5L14 16m-6.5 2.5L10 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

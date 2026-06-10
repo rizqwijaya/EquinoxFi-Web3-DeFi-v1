@@ -1,7 +1,7 @@
 /** Shared data hooks: stats, per-user vault reads, and tx history from the API. */
 import { useQuery } from '@tanstack/react-query';
-import { useAccount, useReadContract } from 'wagmi';
-import { BACKEND_URL, VAULT_ADDRESS, PAIR_ADDRESS, ROUTER_ADDRESS } from './config';
+import { useAccount, useReadContract, useReadContracts } from 'wagmi';
+import { BACKEND_URL, STAKE_VAULTS, PAIR_ADDRESS, ROUTER_ADDRESS } from './config';
 import { vaultAbi, pairAbi, routerAbi } from './abi';
 import type { Address } from 'viem';
 
@@ -63,13 +63,13 @@ export function useHistory() {
   });
 }
 
-/** Live per-user vault reads: staked balance and claimable rewards. */
-export function useVaultPosition() {
+/** Live per-user reads for one vault: staked balance and claimable rewards. */
+export function useVaultPosition(vault: Address) {
   const { address } = useAccount();
   const enabled = !!address;
 
   const { data: staked } = useReadContract({
-    address: VAULT_ADDRESS,
+    address: vault,
     abi: vaultAbi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
@@ -77,7 +77,7 @@ export function useVaultPosition() {
   });
 
   const { data: earned } = useReadContract({
-    address: VAULT_ADDRESS,
+    address: vault,
     abi: vaultAbi,
     functionName: 'earned',
     args: address ? [address] : undefined,
@@ -85,6 +85,62 @@ export function useVaultPosition() {
   });
 
   return { staked: staked as bigint | undefined, earned: earned as bigint | undefined };
+}
+
+/**
+ * Per-vault claimable eRWD rewards plus their total. The reward token is eRWD
+ * for every vault, so the Claim tab shows one combined figure and claims from
+ * each vault that has a positive balance.
+ */
+export function useClaimableRewards() {
+  const { address } = useAccount();
+  const { data } = useReadContracts({
+    contracts: STAKE_VAULTS.map((v) => ({
+      address: v.vault,
+      abi: vaultAbi,
+      functionName: 'earned' as const,
+      args: address ? [address] : undefined,
+    })),
+    query: { enabled: !!address, refetchInterval: 5_000 },
+  });
+
+  const perVault = STAKE_VAULTS.map((v, i) => ({
+    vault: v.vault,
+    symbol: v.symbol,
+    earned: data?.[i]?.status === 'success' ? (data[i].result as bigint) : 0n,
+  }));
+  const total = perVault.reduce((acc, p) => acc + p.earned, 0n);
+  return { perVault, total };
+}
+
+/**
+ * Aggregated position across every stake vault: summed staked principal and
+ * summed claimable eRWD rewards. Used by the Portfolio overview, which shows a
+ * single staked/rewards figure rather than a per-vault breakdown.
+ */
+export function useTotalStakePosition() {
+  const { address } = useAccount();
+  const enabled = !!address;
+
+  const { data } = useReadContracts({
+    contracts: STAKE_VAULTS.flatMap((v) => [
+      { address: v.vault, abi: vaultAbi, functionName: 'balanceOf' as const, args: address ? [address] : undefined },
+      { address: v.vault, abi: vaultAbi, functionName: 'earned' as const, args: address ? [address] : undefined },
+    ]),
+    query: { enabled, refetchInterval: 8_000 },
+  });
+
+  // Pairs of [balanceOf, earned] per vault; sum each across vaults.
+  const sumAt = (offset: number): bigint | undefined => {
+    if (!data) return undefined;
+    let total = 0n;
+    for (let i = offset; i < data.length; i += 2) {
+      if (data[i]?.status === 'success') total += data[i].result as bigint;
+    }
+    return total;
+  };
+
+  return { staked: sumAt(0), earned: sumAt(1) };
 }
 
 // ── DEX (AMM) hooks ──────────────────────────────────────────────────────────

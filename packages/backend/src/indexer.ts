@@ -37,14 +37,14 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 
 export class Indexer {
   readonly client: PublicClient;
-  private readonly vault: Address;
+  private readonly vaults: Address[];
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly cfg: AppConfig,
     private readonly db: Db,
   ) {
-    this.vault = cfg.vaultAddress as Address;
+    this.vaults = cfg.vaultAddresses;
     this.client = createPublicClient({
       chain: sepolia,
       transport: http(cfg.rpcUrl),
@@ -69,8 +69,10 @@ export class Indexer {
   /** Index a single [from, to] block range for all tracked events. */
   private async indexRange(from: bigint, to: bigint): Promise<void> {
     for (const [kind, event] of Object.entries(EVENTS) as [EventKind, (typeof EVENTS)[EventKind]][]) {
+      // Query all vaults at once (array address form); `log.address` attributes
+      // each event back to the vault that emitted it.
       const logs = await this.client.getLogs({
-        address: this.vault,
+        address: this.vaults,
         event,
         fromBlock: from,
         toBlock: to,
@@ -79,6 +81,7 @@ export class Indexer {
         const args = log.args as { user?: Address; amount?: bigint; reward?: bigint };
         this.db.insertEvent({
           kind,
+          vault: log.address,
           user: args.user ?? '0x0000000000000000000000000000000000000000',
           amount: args.amount ?? args.reward ?? 0n,
           blockNumber: log.blockNumber ?? 0n,

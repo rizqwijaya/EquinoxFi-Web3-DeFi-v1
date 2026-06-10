@@ -20,6 +20,8 @@ export type EventKind = 'Staked' | 'Withdrawn' | 'RewardPaid';
 export interface Db {
   insertEvent(e: {
     kind: EventKind;
+    /** Vault that emitted the event (eTKNA / eTKNB vault). */
+    vault: string;
     user: string;
     amount: bigint;
     blockNumber: bigint;
@@ -85,6 +87,7 @@ export function openDb(path: string): Db {
     CREATE TABLE IF NOT EXISTS events (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       kind        TEXT NOT NULL,
+      vault       TEXT NOT NULL DEFAULT '', -- which vault emitted the event
       user        TEXT NOT NULL,
       amount      TEXT NOT NULL,        -- uint256 stored as decimal string
       block_number INTEGER NOT NULL,
@@ -125,9 +128,16 @@ export function openDb(path: string): Db {
     // Column already exists — nothing to do.
   }
 
+  // Migrate older DBs that predate the events `vault` column (multi-vault stake).
+  try {
+    sqlite.exec(`ALTER TABLE events ADD COLUMN vault TEXT NOT NULL DEFAULT ''`);
+  } catch {
+    // Column already exists — nothing to do.
+  }
+
   const insertStmt = sqlite.prepare(
-    `INSERT OR IGNORE INTO events (kind, user, amount, block_number, log_index, tx_hash)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO events (kind, vault, user, amount, block_number, log_index, tx_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
   const lastBlockStmt = sqlite.prepare(`SELECT value FROM meta WHERE key = 'last_block'`);
   const setBlockStmt = sqlite.prepare(
@@ -182,6 +192,7 @@ export function openDb(path: string): Db {
     insertEvent(e) {
       insertStmt.run(
         e.kind,
+        e.vault.toLowerCase(),
         e.user.toLowerCase(),
         e.amount.toString(),
         Number(e.blockNumber),

@@ -17,7 +17,6 @@ import { sepolia } from 'wagmi/chains';
 import type { Address } from 'viem';
 import { erc20Abi } from '../abi';
 import {
-  STAKING_TOKEN_ADDRESS,
   REWARD_TOKEN_ADDRESS,
   TOKEN_A_ADDRESS,
   TOKEN_B_ADDRESS,
@@ -27,8 +26,9 @@ import {
   PAIR_WETH_B_ADDRESS,
 } from '../config';
 import { fmt, txUrl } from '../format';
-import { useVaultPosition, useHistory, useSwapHistory, type SwapEvent } from '../hooks';
+import { useTotalStakePosition, useHistory, useSwapHistory, type SwapEvent } from '../hooks';
 import { Badge } from '../components/ui';
+import { TokenBlobs } from '../components/TokenBlobs';
 
 /** Display symbol per token address (ETH for WETH). */
 const SWAP_SYMBOL: Record<string, string> = {
@@ -131,9 +131,8 @@ export function PortfolioPage() {
   const { connect } = useConnect();
 
   const { data: eth } = useBalance({ address, chainId: sepolia.id, query: { enabled: !!address } });
-  const { staked, earned } = useVaultPosition();
+  const { staked, earned } = useTotalStakePosition();
 
-  const eStake = useTokenBalance(STAKING_TOKEN_ADDRESS, address);
   const eRwd = useTokenBalance(REWARD_TOKEN_ADDRESS, address);
   const eTknA = useTokenBalance(TOKEN_A_ADDRESS, address);
   const eTknB = useTokenBalance(TOKEN_B_ADDRESS, address);
@@ -154,16 +153,63 @@ export function PortfolioPage() {
 
   if (!isConnected || !address) {
     return (
-      <div className="animate-fade-in max-w-md mx-auto card-glow rounded-2xl px-6 py-12 mt-16 text-center">
-        <div className="text-aurora text-3xl mb-3">◇</div>
-        <p className="text-slate-300 font-semibold">Connect your wallet</p>
-        <p className="mt-1 text-sm text-slate-500">View your balances, staking position, and activity.</p>
-        <button
-          onClick={() => connect({ connector: injected() })}
-          className="mt-5 rounded-full bg-gradient-to-r from-indigo to-indigo-bright px-6 py-2.5 text-sm font-semibold transition hover:brightness-110 shadow-lg shadow-indigo/30"
-        >
-          Connect
-        </button>
+      <div className="relative flex min-h-[72vh] items-center justify-center overflow-hidden">
+        {/* Ambient floating crypto coins + colored glow blobs for depth. */}
+        <TokenBlobs />
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-0">
+          <div className="absolute left-1/3 top-1/4 h-72 w-72 -translate-x-1/2 rounded-full bg-indigo/30 blur-[120px] animate-pulse-slow" />
+          <div
+            className="absolute bottom-1/4 right-1/3 h-72 w-72 translate-x-1/2 rounded-full bg-aurora/20 blur-[120px] animate-pulse-slow"
+            style={{ animationDelay: '1.6s' }}
+          />
+        </div>
+
+        <div className="relative z-10 w-full max-w-md animate-pop-in">
+          <div className="card-glow rounded-3xl px-8 py-10 text-center">
+            {/* Glowing, floating diamond mark. */}
+            <div className="relative mx-auto mb-5 h-20 w-20">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo to-aurora opacity-60 blur-xl animate-pulse-slow" />
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo to-aurora text-3xl text-white shadow-lg shadow-indigo/40 ring-1 ring-white/20 animate-float">
+                ◇
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-slate-100">Connect your wallet</h2>
+            <p className="mx-auto mt-1.5 max-w-xs text-sm text-slate-400">
+              View your balances, staking position, and activity — all in one place.
+            </p>
+
+            <button
+              onClick={() => connect({ connector: injected() })}
+              className="group relative mt-6 inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-indigo to-indigo-bright px-7 py-3 text-sm font-semibold shadow-lg shadow-indigo/30 transition hover:brightness-110 active:scale-[0.98]"
+            >
+              {/* Sweeping sheen on hover. */}
+              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1h-2V7H5v10h14v-1h2v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm14 4h4v4h-4a2 2 0 0 1 0-4Z" fill="currentColor" />
+              </svg>
+              Connect wallet
+            </button>
+
+            {/* Teaser tiles hinting at what's behind the wall. */}
+            <div className="mt-8 grid grid-cols-3 gap-2">
+              {[
+                { label: 'Staked', accent: 'text-slate-300' },
+                { label: 'Rewards', accent: 'text-aurora' },
+                { label: 'Activity', accent: 'text-indigo-bright' },
+              ].map((t, i) => (
+                <div
+                  key={t.label}
+                  className="rounded-xl border border-white/5 bg-midnight/40 px-3 py-3 animate-float"
+                  style={{ animationDelay: `${i * 0.6}s` }}
+                >
+                  <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">{t.label}</div>
+                  <div className={`mt-1 text-lg font-bold tracking-widest ${t.accent} opacity-50`}>•••</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -193,7 +239,7 @@ export function PortfolioPage() {
         <div className="card-glow rounded-2xl px-5 py-4">
           <div className="text-xs uppercase tracking-wider text-slate-500">Staked</div>
           <div className="mt-1.5 text-2xl font-bold text-slate-100">{fmt(staked)}</div>
-          <div className="mt-1 text-xs text-slate-500">eSTAKE</div>
+          <div className="mt-1 text-xs text-slate-500">eTKNA + eTKNB</div>
         </div>
         <div className="card-glow rounded-2xl px-5 py-4">
           <div className="text-xs uppercase tracking-wider text-slate-500">Claimable rewards</div>
@@ -205,10 +251,9 @@ export function PortfolioPage() {
       {/* Token balances */}
       <h3 className="text-sm font-semibold text-slate-300 mt-8 mb-3">Token balances</h3>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <BalanceTile symbol="eSTAKE" name="Staking token" value={eStake} accent />
+        <BalanceTile symbol="eTKNA" name="Staking token" value={eTknA} accent />
+        <BalanceTile symbol="eTKNB" name="Staking token" value={eTknB} accent />
         <BalanceTile symbol="eRWD" name="Reward token" value={eRwd} />
-        <BalanceTile symbol="eTKNA" name="Equinox Token A" value={eTknA} />
-        <BalanceTile symbol="eTKNB" name="Equinox Token B" value={eTknB} />
       </div>
 
       {/* Activity */}

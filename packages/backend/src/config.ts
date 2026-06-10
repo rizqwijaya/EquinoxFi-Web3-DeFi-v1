@@ -1,9 +1,9 @@
 /**
  * Environment configuration for the indexer/API.
  *
- * Loaded from the repo-root `.env` (see `.env.example`). The contract address
- * and deploy block are filled in after the Phase 4 Sepolia deployment; until
- * then the indexer starts but logs that it is idle (no VAULT_ADDRESS).
+ * Loaded from the repo-root `.env` (see `.env.example`). The vault addresses
+ * and deploy block are filled in after deployment; until then the indexer
+ * starts but logs that it is idle (no VAULT_A_ADDRESS / VAULT_B_ADDRESS).
  */
 import { config as loadEnv } from 'dotenv';
 import { resolve } from 'node:path';
@@ -22,12 +22,13 @@ function bool(addr: string | undefined): addr is string {
 
 export interface AppConfig {
   rpcUrl: string;
-  vaultAddress: Address | undefined;
+  /** Stake vaults indexed for events/stats (eTKNA + eTKNB vaults). */
+  vaultAddresses: Address[];
   deployBlock: bigint;
   databasePath: string;
   port: number;
   pollIntervalMs: number;
-  /** True only when a real vault address is configured. */
+  /** True only when at least one real vault address is configured. */
   isConfigured: boolean;
   // ── DEX (AMM) ──
   /** Primary pair (eTKNA/eTKNB) — used for live reserves/price in /dex/stats. */
@@ -39,9 +40,12 @@ export interface AppConfig {
   isDexConfigured: boolean;
 }
 
-const rawVault = process.env.VAULT_ADDRESS;
 const rawPair = process.env.PAIR_ADDRESS;
 const rpcUrl = process.env.RPC_URL ?? process.env.SEPOLIA_RPC_URL ?? '';
+
+// Stake vaults: eTKNA vault (A) + eTKNB vault (B). Both reward eRWD and are
+// indexed into the same events table (each event tagged with its vault).
+const vaultAddresses = [process.env.VAULT_A_ADDRESS, process.env.VAULT_B_ADDRESS].filter(bool) as Address[];
 
 // Native-ETH pools (WETH/token) — indexed alongside the primary pair so ETH
 // swaps show up in swap count and activity.
@@ -49,12 +53,13 @@ const ethPairs = [process.env.PAIR_WETH_A, process.env.PAIR_WETH_B].filter(bool)
 
 export const appConfig: AppConfig = {
   rpcUrl,
-  vaultAddress: bool(rawVault) ? (rawVault as Address) : undefined,
-  deployBlock: BigInt(process.env.DEPLOY_BLOCK ?? '0'),
+  vaultAddresses,
+  // Backfill start for the stake vaults; falls back to the legacy DEPLOY_BLOCK.
+  deployBlock: BigInt(process.env.STAKE_DEPLOY_BLOCK ?? process.env.DEPLOY_BLOCK ?? '0'),
   databasePath: process.env.DATABASE_PATH ?? './data/equinoxfi.db',
   port: Number(process.env.PORT ?? 3001),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? 12_000),
-  isConfigured: bool(rawVault) && !!rpcUrl,
+  isConfigured: vaultAddresses.length > 0 && !!rpcUrl,
   pairAddress: bool(rawPair) ? (rawPair as Address) : undefined,
   dexPairAddresses: bool(rawPair) ? [rawPair as Address, ...ethPairs] : [],
   // Falls back to DEPLOY_BLOCK when a dedicated DEX deploy block isn't set.

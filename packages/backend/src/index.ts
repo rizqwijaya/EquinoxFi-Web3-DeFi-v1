@@ -41,23 +41,22 @@ app.get('/health', async () => ({
 }));
 
 app.get('/stats', async (_req, reply) => {
-  if (!indexer || !appConfig.vaultAddress) {
-    return reply.code(503).send({ error: 'indexer not configured (no VAULT_ADDRESS)' });
+  if (!indexer || appConfig.vaultAddresses.length === 0) {
+    return reply.code(503).send({ error: 'indexer not configured (no vault addresses)' });
   }
 
-  // Live reads from the contract.
-  const [totalStaked, rewardRate] = await Promise.all([
-    indexer.client.readContract({
-      address: appConfig.vaultAddress,
-      abi: equinoxVaultAbi,
-      functionName: 'totalSupply',
-    }),
-    indexer.client.readContract({
-      address: appConfig.vaultAddress,
-      abi: equinoxVaultAbi,
-      functionName: 'rewardRate',
-    }),
-  ]);
+  // Live reads across every stake vault, summed (totalStaked is in mixed
+  // eTKNA/eTKNB units; rewardRate is all eRWD). One read pair per vault.
+  const perVault = await Promise.all(
+    appConfig.vaultAddresses.map((address) =>
+      Promise.all([
+        indexer.client.readContract({ address, abi: equinoxVaultAbi, functionName: 'totalSupply' }),
+        indexer.client.readContract({ address, abi: equinoxVaultAbi, functionName: 'rewardRate' }),
+      ]),
+    ),
+  );
+  const totalStaked = perVault.reduce((acc, [s]) => acc + (s as bigint), 0n);
+  const rewardRate = perVault.reduce((acc, [, r]) => acc + (r as bigint), 0n);
 
   return {
     totalStaked: totalStaked.toString(),

@@ -16,11 +16,14 @@ import { createPortal } from 'react-dom';
 import {
   useAccount,
   useBalance,
+  useChainId,
+  useSwitchChain,
   useReadContract,
   useReadContracts,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
+import { sepolia } from 'wagmi/chains';
 import { parseUnits, formatUnits, maxUint256 } from 'viem';
 import type { Address } from 'viem';
 import { erc20Abi, routerAbi } from '../abi';
@@ -28,7 +31,6 @@ import {
   ROUTER_ADDRESS,
   TOKEN_A_ADDRESS,
   TOKEN_B_ADDRESS,
-  STAKING_TOKEN_ADDRESS,
   REWARD_TOKEN_ADDRESS,
   WETH_ADDRESS,
   TOKENS,
@@ -66,7 +68,6 @@ type TokenMeta = {
 const TOKEN_CATALOG: TokenMeta[] = [
   { address: WETH_ADDRESS, symbol: 'ETH', name: 'Ethereum', native: true, img: ETH_ICON },
   { address: REWARD_TOKEN_ADDRESS, symbol: 'eRWD', name: 'Equinox Reward', badge: 'eR', grad: 'from-indigo-bright to-indigo', comingSoon: true },
-  { address: STAKING_TOKEN_ADDRESS, symbol: 'eSTAKE', name: 'Equinox Stake', badge: 'eS', grad: 'from-rose-500 to-rose-700', comingSoon: true },
   { address: TOKEN_A_ADDRESS, symbol: 'eTKNA', name: 'Equinox Token A', badge: 'eA', grad: 'from-aurora to-aurora-dim' },
   { address: TOKEN_B_ADDRESS, symbol: 'eTKNB', name: 'Equinox Token B', badge: 'eB', grad: 'from-cyan-400 to-sky-600' },
 ];
@@ -303,6 +304,12 @@ function applySlippage(amountOut: bigint, slippagePct: string): bigint {
  */
 export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
   const { address } = useAccount();
+  // The wallet's *active* chain. If it isn't Sepolia, any tx would be built and
+  // paid for on that chain (e.g. real ETH on mainnet) — so we block the swap and
+  // offer a one-tap switch instead.
+  const chainId = useChainId();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const wrongNetwork = !!address && chainId !== sepolia.id;
   const [amount, setAmount] = useState('');
   // True between an approval tx and its auto-fired swap (one-click approve+swap).
   const [pendingSwap, setPendingSwap] = useState(false);
@@ -411,6 +418,7 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
     if (nativeIn) {
       // Selling native ETH: wrap via msg.value, path starts at WETH.
       writeContract({
+        chainId: sepolia.id,
         address: ROUTER_ADDRESS,
         abi: routerAbi,
         functionName: 'swapExactETHForTokens',
@@ -422,6 +430,7 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
     if (nativeOut) {
       // Buying native ETH: router unwraps WETH and forwards ETH.
       writeContract({
+        chainId: sepolia.id,
         address: ROUTER_ADDRESS,
         abi: routerAbi,
         functionName: 'swapExactTokensForETH',
@@ -430,6 +439,7 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
       return;
     }
     writeContract({
+      chainId: sepolia.id,
       address: ROUTER_ADDRESS,
       abi: routerAbi,
       functionName: 'swapExactTokensForTokens',
@@ -438,6 +448,10 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
   };
 
   const onPrimary = () => {
+    if (wrongNetwork) {
+      switchChain({ chainId: sepolia.id });
+      return;
+    }
     if (needsApproval) {
       // Clear any prior tx's success first, otherwise the auto-swap effect would
       // fire immediately off the stale `isSuccess` instead of waiting for this
@@ -447,6 +461,7 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
       // Approve max once so this token never needs approving again, subsequent
       // swaps are a single confirmation (standard Uniswap allowance pattern).
       writeContract({
+        chainId: sepolia.id,
         address: tokenIn,
         abi: erc20Abi,
         functionName: 'approve',
@@ -469,22 +484,27 @@ export function SwapCard({ swapOnly = false }: { swapOnly?: boolean } = {}) {
 
   const primaryLabel = !address
     ? 'Connect wallet'
-    : !routeOk
-      ? 'No liquidity for this pair'
-      : parsed === 0n
-        ? 'Enter an amount'
-        : overBalance
-          ? 'Insufficient balance'
-          : quotedOut === undefined
-            ? 'Fetching quote…'
-            : pendingSwap
-              ? 'Approving…'
-              : busy
-                ? 'Confirming…'
-                : 'Swap';
+    : wrongNetwork
+      ? isSwitching ? 'Switching…' : 'Switch to Sepolia'
+      : !routeOk
+        ? 'No liquidity for this pair'
+        : parsed === 0n
+          ? 'Enter an amount'
+          : overBalance
+            ? 'Insufficient balance'
+            : quotedOut === undefined
+              ? 'Fetching quote…'
+              : pendingSwap
+                ? 'Approving…'
+                : busy
+                  ? 'Confirming…'
+                  : 'Swap';
 
-  const primaryDisabled =
-    !address || !routeOk || parsed === 0n || overBalance || busy || (!needsApproval && quotedOut === undefined);
+  const primaryDisabled = !address
+    ? true
+    : wrongNetwork
+      ? isSwitching
+      : !routeOk || parsed === 0n || overBalance || busy || (!needsApproval && quotedOut === undefined);
 
   const price =
     parsed > 0n && quotedOut !== undefined && quotedOut > 0n
