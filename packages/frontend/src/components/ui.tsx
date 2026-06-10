@@ -1,5 +1,57 @@
 /** Small reusable presentational components shared across pages. */
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+
+/**
+ * A number that smoothly counts to `value` whenever it changes (easeOutCubic
+ * over ~700ms), starting from 0 on first mount. Gives dashboards a live,
+ * "ticking" feel — balances animate in and accruing rewards visibly climb.
+ *
+ *   - `decimals` caps the fraction digits; `fixed` pads to exactly that many
+ *     (steadier for live figures); both group thousands with locale separators.
+ */
+export function AnimatedNumber({
+  value,
+  decimals = 4,
+  fixed = false,
+  className = '',
+}: {
+  value: number;
+  decimals?: number;
+  fixed?: boolean;
+  className?: string;
+}) {
+  const [display, setDisplay] = useState(0);
+  const fromRef = useRef(0);
+  const rafRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    const to = Number.isFinite(value) ? value : 0;
+    if (from === to) return;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / 700);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (to - from) * eased);
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+      else fromRef.current = to;
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [value]);
+
+  return (
+    <span className={className}>
+      {display.toLocaleString(undefined, {
+        minimumFractionDigits: fixed ? decimals : 0,
+        maximumFractionDigits: decimals,
+      })}
+    </span>
+  );
+}
 
 /**
  * Transaction status banner shared by the Stake/Swap cards. Renders a colored,

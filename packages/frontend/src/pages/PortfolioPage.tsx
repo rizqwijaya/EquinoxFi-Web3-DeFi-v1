@@ -10,7 +10,7 @@
  * Replaces the old protocol-wide Analytics page (whose KPIs now live on the
  * landing page's stats panel).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAccount, useConnect, useReadContract, useBalance } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { sepolia } from 'wagmi/chains';
@@ -25,9 +25,9 @@ import {
   PAIR_WETH_A_ADDRESS,
   PAIR_WETH_B_ADDRESS,
 } from '../config';
-import { fmt, txUrl } from '../format';
+import { fmt, toNum, txUrl } from '../format';
 import { useTotalStakePosition, useHistory, useSwapHistory, type SwapEvent } from '../hooks';
-import { Badge } from '../components/ui';
+import { AnimatedNumber, Badge } from '../components/ui';
 import { TokenBlobs } from '../components/TokenBlobs';
 
 /** Display symbol per token address (ETH for WETH). */
@@ -72,19 +72,50 @@ function useTokenBalance(token: Address, address?: Address) {
   return data as bigint | undefined;
 }
 
-/** One token-balance tile. */
-function BalanceTile({ symbol, name, value, accent }: { symbol: string; name: string; value: bigint | undefined; accent?: boolean }) {
+/** Per-token accent palette (eRWD is "gold" to read as the reward token). */
+const TILE_COLOR = {
+  aurora: { text: 'text-aurora', bar: 'bg-aurora', ring: 'hover:ring-aurora/40' },
+  indigo: { text: 'text-indigo-bright', bar: 'bg-indigo-bright', ring: 'hover:ring-indigo-bright/40' },
+  amber: { text: 'text-amber-300', bar: 'bg-amber-400', ring: 'hover:ring-amber-400/40' },
+} as const;
+
+/** One token-balance tile: glowing accent dot, animated value, share bar. */
+function BalanceTile({
+  symbol,
+  name,
+  value,
+  color,
+  share,
+  delay,
+  grow,
+}: {
+  symbol: string;
+  name: string;
+  value: bigint | undefined;
+  color: keyof typeof TILE_COLOR;
+  share: number;
+  delay: number;
+  grow: boolean;
+}) {
+  const c = TILE_COLOR[color];
   return (
-    <div className="card-glow rounded-2xl px-5 py-4">
-      <div className="flex items-center gap-2">
-        <span className="text-aurora">◇</span>
-        <div>
-          <div className="font-semibold text-slate-100 text-sm">{symbol}</div>
-          <div className="text-xs text-slate-500">{name}</div>
+    <div
+      className={`group card-glow rounded-2xl px-5 py-4 ring-1 ring-transparent transition-all duration-300 hover:-translate-y-1 ${c.ring} animate-fade-in`}
+      style={{ animationDelay: `${delay}s`, animationFillMode: 'backwards' }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 rounded-full ${c.bar} ${c.text} shadow-[0_0_12px_currentColor]`} />
+          <div>
+            <div className="font-semibold text-slate-100 text-sm">{symbol}</div>
+            <div className="text-xs text-slate-500">{name}</div>
+          </div>
         </div>
+        <span className="text-xs font-medium text-slate-500 tabular-nums">{share.toFixed(0)}%</span>
       </div>
-      <div className={`mt-3 text-2xl font-bold ${accent ? 'text-aurora' : 'text-slate-100'}`}>
-        {fmt(value)}
+      <AnimatedNumber value={toNum(value)} className={`mt-3 block text-2xl font-bold tabular-nums ${c.text}`} />
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
+        <div className={`h-full ${c.bar} transition-all duration-700 ease-out`} style={{ width: `${grow ? share : 0}%` }} />
       </div>
     </div>
   );
@@ -151,6 +182,10 @@ export function PortfolioPage() {
     return rows.sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 25);
   }, [stakeHist, swapHist]);
 
+  // Flips true after first paint so the allocation bars animate from 0 → share.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   if (!isConnected || !address) {
     return (
       <div className="relative flex min-h-[72vh] items-center justify-center overflow-hidden">
@@ -215,49 +250,101 @@ export function PortfolioPage() {
   }
 
   const short = `${address.slice(0, 6)}…${address.slice(-4)}`;
-  const ethStr = eth ? `${parseFloat(eth.formatted).toFixed(4)} ${eth.symbol}` : '…';
+  const ethNum = eth ? parseFloat(eth.formatted) : 0;
+  const ethSym = eth?.symbol ?? 'ETH';
+
+  // Truthful relative split of wallet holdings (token units, not USD).
+  const aNum = toNum(eTknA);
+  const bNum = toNum(eTknB);
+  const rNum = toNum(eRwd);
+  const totalTokens = aNum + bNum + rNum;
+  const share = (n: number) => (totalTokens > 0 ? (n / totalTokens) * 100 : 0);
 
   return (
-    <div className="animate-fade-in max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mt-8 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-full bg-gradient-to-br from-indigo to-aurora flex items-center justify-center text-lg">◇</div>
-          <div>
-            <h2 className="text-2xl font-bold leading-tight">Portfolio</h2>
-            <CopyAddress address={address} short={short} />
+    <div className="relative animate-fade-in max-w-5xl mx-auto">
+      {/* Ambient depth behind the dashboard. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-10 left-1/4 h-64 w-64 rounded-full bg-indigo/20 blur-[120px] animate-pulse-slow" />
+        <div
+          className="absolute top-24 right-1/4 h-64 w-64 rounded-full bg-aurora/10 blur-[120px] animate-pulse-slow"
+          style={{ animationDelay: '1.6s' }}
+        />
+      </div>
+
+      {/* Hero: identity + headline staking position. */}
+      <div className="relative mt-8 overflow-hidden rounded-3xl card-glow px-6 py-6 sm:px-8 sm:py-7 animate-pop-in">
+        <div aria-hidden className="pointer-events-none absolute -inset-px rounded-3xl bg-gradient-to-br from-indigo/10 via-transparent to-aurora/10" />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="relative h-12 w-12">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo to-aurora opacity-60 blur-md animate-pulse-slow" />
+                <div className="relative grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-indigo to-aurora text-xl text-white shadow-lg shadow-indigo/40 ring-1 ring-white/20 animate-float">
+                  ◇
+                </div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold leading-tight">Portfolio</h2>
+                <CopyAddress address={address} short={short} />
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-500">Wallet ETH</div>
+              <div className="text-lg font-bold text-slate-100">
+                <AnimatedNumber value={ethNum} fixed className="tabular-nums" /> {ethSym}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-5 sm:grid-cols-2">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-500">Staked</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <AnimatedNumber value={toNum(staked)} className="text-4xl font-bold text-slate-100 tabular-nums" />
+                <span className="text-sm text-slate-500">eTKNA + eTKNB</span>
+              </div>
+            </div>
+            <div className="sm:border-l sm:border-white/10 sm:pl-6">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-slate-500">
+                Claimable rewards
+                <span className="inline-flex items-center gap-1 rounded-full bg-aurora/15 px-1.5 py-0.5 text-[0.6rem] font-semibold normal-case tracking-normal text-aurora">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-aurora opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-aurora" />
+                  </span>
+                  Live
+                </span>
+              </div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <AnimatedNumber value={toNum(earned)} fixed className="text-4xl font-bold text-aurora tabular-nums" />
+                <span className="text-sm text-slate-500">eRWD · earning</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xs text-slate-500">Wallet ETH</div>
-          <div className="text-lg font-bold text-slate-100">{ethStr}</div>
-        </div>
       </div>
 
-      {/* Staking position */}
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div className="card-glow rounded-2xl px-5 py-4">
-          <div className="text-xs uppercase tracking-wider text-slate-500">Staked</div>
-          <div className="mt-1.5 text-2xl font-bold text-slate-100">{fmt(staked)}</div>
-          <div className="mt-1 text-xs text-slate-500">eTKNA + eTKNB</div>
-        </div>
-        <div className="card-glow rounded-2xl px-5 py-4">
-          <div className="text-xs uppercase tracking-wider text-slate-500">Claimable rewards</div>
-          <div className="mt-1.5 text-2xl font-bold text-aurora">{fmt(earned)}</div>
-          <div className="mt-1 text-xs text-slate-500">eRWD</div>
-        </div>
+      {/* Token balances + allocation. */}
+      <div className="mt-8 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-300">Token balances</h3>
+        <span className="text-xs text-slate-600">Allocation</span>
       </div>
-
-      {/* Token balances */}
-      <h3 className="text-sm font-semibold text-slate-300 mt-8 mb-3">Token balances</h3>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <BalanceTile symbol="eTKNA" name="Staking token" value={eTknA} accent />
-        <BalanceTile symbol="eTKNB" name="Staking token" value={eTknB} accent />
-        <BalanceTile symbol="eRWD" name="Reward token" value={eRwd} />
+      <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-white/5">
+        <div className="h-full bg-aurora transition-all duration-700 ease-out" style={{ width: `${mounted ? share(aNum) : 0}%` }} />
+        <div className="h-full bg-indigo-bright transition-all duration-700 ease-out" style={{ width: `${mounted ? share(bNum) : 0}%` }} />
+        <div className="h-full bg-amber-400 transition-all duration-700 ease-out" style={{ width: `${mounted ? share(rNum) : 0}%` }} />
+      </div>
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <BalanceTile symbol="eTKNA" name="Staking token" value={eTknA} color="aurora" share={share(aNum)} delay={0} grow={mounted} />
+        <BalanceTile symbol="eTKNB" name="Staking token" value={eTknB} color="indigo" share={share(bNum)} delay={0.08} grow={mounted} />
+        <BalanceTile symbol="eRWD" name="Reward token" value={eRwd} color="amber" share={share(rNum)} delay={0.16} grow={mounted} />
       </div>
 
       {/* Activity */}
-      <h3 className="text-sm font-semibold text-slate-300 mt-8 mb-3">Recent activity</h3>
+      <div className="mt-8 mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-300">Recent activity</h3>
+        {feed.length > 0 && <span className="text-xs text-slate-600 tabular-nums">{feed.length} events</span>}
+      </div>
       <div className="card-glow rounded-2xl overflow-hidden">
         {feed.length === 0 ? (
           <div className="px-6 py-12 text-center text-slate-600 text-sm">
@@ -271,7 +358,8 @@ export function PortfolioPage() {
                 href={txUrl(row.txHash)}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-3 px-5 py-3.5 text-sm hover:bg-white/[0.02] transition"
+                className="group flex items-center gap-3 px-5 py-3.5 text-sm transition-colors hover:bg-white/[0.03] animate-fade-in"
+                style={{ animationDelay: `${Math.min(i, 12) * 0.03}s`, animationFillMode: 'backwards' }}
               >
                 {row.type === 'stake' ? (
                   <Badge kind={row.kind} />
@@ -281,8 +369,8 @@ export function PortfolioPage() {
                 <span className="text-slate-300">
                   {row.type === 'stake' ? `${fmt(BigInt(row.amount))} eSTAKE` : row.label}
                 </span>
-                <span className="ml-auto text-xs text-slate-600">Block {row.blockNumber}</span>
-                <svg className="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24">
+                <span className="ml-auto text-xs text-slate-600 tabular-nums">Block {row.blockNumber}</span>
+                <svg className="w-3.5 h-3.5 text-slate-600 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-aurora" fill="none" viewBox="0 0 24 24">
                   <path d="M7 17L17 7m0 0H8m9 0v9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </a>

@@ -9,6 +9,12 @@ export function fmt(value: bigint | undefined, decimals = 18, maxFrac = 4): stri
   return frac ? `${whole}.${frac.slice(0, maxFrac)}` : whole;
 }
 
+/** Base-unit bigint → JS number, for animation/maths (not exact past 2^53). */
+export function toNum(value: bigint | undefined, decimals = 18): number {
+  if (value === undefined) return 0;
+  return Number(formatUnits(value, decimals));
+}
+
 /** Sepolia Etherscan tx link. */
 export function txUrl(hash: string): string {
   return `https://sepolia.etherscan.io/tx/${hash}`;
