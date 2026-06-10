@@ -4,6 +4,9 @@
   "private": true,
   "description": "EquinoxFi — single-asset yield staking protocol. Balance at the heart of yield.",
   "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "dev": "pnpm --filter @equinoxfi/frontend dev",
     "dev:backend": "pnpm --filter @equinoxfi/backend dev",

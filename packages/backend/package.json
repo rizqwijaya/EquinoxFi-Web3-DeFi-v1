@@ -5,6 +5,9 @@
   "description": "EquinoxFi indexer/API — Fastify + viem + SQLite.",
   "type": "module",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "dev": "node --experimental-sqlite --import tsx --watch src/index.ts",
     "build": "tsc -p tsconfig.json",
