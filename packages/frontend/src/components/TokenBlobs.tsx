@@ -3,17 +3,36 @@
  * a nod to a landing page's floating, out-of-focus token art.
  *
  * Purely cosmetic: `pointer-events-none` and `aria-hidden`, rendered behind the
- * hero content (which sits at `z-10`). Icons are pulled from the pinned
- * `cryptocurrency-icons` package on jsDelivr, so no local assets are needed.
- * Each coin floats on the shared `float` keyframe with a staggered delay so the
- * cluster drifts gently rather than in lockstep.
+ * hero content (which sits at `z-10`). Icons are imported from the bundled
+ * `cryptocurrency-icons` package and emitted as hashed assets by Vite, so they
+ * load from our own origin — no third-party CDN, works offline and regardless
+ * of ad-blockers. Each coin floats on the shared `float` keyframe with a
+ * staggered delay so the cluster drifts gently rather than in lockstep.
  */
+import ethIcon from 'cryptocurrency-icons/svg/color/eth.svg';
+import btcIcon from 'cryptocurrency-icons/svg/color/btc.svg';
+import solIcon from 'cryptocurrency-icons/svg/color/sol.svg';
+import usdtIcon from 'cryptocurrency-icons/svg/color/usdt.svg';
+import bnbIcon from 'cryptocurrency-icons/svg/color/bnb.svg';
+import maticIcon from 'cryptocurrency-icons/svg/color/matic.svg';
+import avaxIcon from 'cryptocurrency-icons/svg/color/avax.svg';
+import xrpIcon from 'cryptocurrency-icons/svg/color/xrp.svg';
 
-const ICON_BASE = 'https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color';
+/** Bundled icon URL per symbol (resolved by Vite at build time). */
+const ICONS: Record<string, string> = {
+  eth: ethIcon,
+  btc: btcIcon,
+  sol: solIcon,
+  usdt: usdtIcon,
+  bnb: bnbIcon,
+  matic: maticIcon,
+  avax: avaxIcon,
+  xrp: xrpIcon,
+};
 
 /** One floating coin: symbol + placement, size, blur strength, and drift delay. */
 type Blob = {
-  sym: string;
+  sym: keyof typeof ICONS;
   /** Tailwind position utilities (top/left/right/bottom). */
   pos: string;
   /** Tailwind size utility, e.g. `h-20 w-20`. */
@@ -45,7 +64,7 @@ export function TokenBlobs() {
       {BLOBS.map(({ sym, pos, size, blur, opacity, delay }) => (
         <img
           key={sym}
-          src={`${ICON_BASE}/${sym}.svg`}
+          src={ICONS[sym]}
           alt=""
           loading="lazy"
           draggable={false}

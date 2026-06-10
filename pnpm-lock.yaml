@@ -40,6 +40,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.62.0
         version: 5.101.0(react@18.3.1)
+      cryptocurrency-icons:
+        specifier: ^0.18.1
+        version: 0.18.1
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1758,6 +1761,9 @@ packages:
 
   crypt@0.0.2:
     resolution: {integrity: sha512-mCxBlsHFYh9C+HVpiEacem8FEBnMXgU9gy4zmNC+SXAZNB/1idgp/aulFJ4FgCi7GPEVbfyng092GqL2k2rmow==}
+
+  cryptocurrency-icons@0.18.1:
+    resolution: {integrity: sha512-dvR5O8JOmav3559Yb0Igpkia+3vpt/aeNvMu5ZIVUG2Bzpq9wNcOJRIQas49XJrPjtZ98GAEn3aDQO+w7uhS2w==}
 
   cssesc@3.0.0:
     resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
@@ -5754,6 +5760,8 @@ snapshots:
       uncrypto: 0.1.3
 
   crypt@0.0.2: {}
+
+  cryptocurrency-icons@0.18.1: {}
 
   cssesc@3.0.0: {}
 

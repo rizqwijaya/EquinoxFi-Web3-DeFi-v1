@@ -39,12 +39,12 @@ import { fmt, txUrl } from '../format';
 import { useQuote } from '../hooks';
 import { Spinner, TxStatus } from './ui';
 import { SettingsPopup, GearIcon } from './SettingsPopup';
+// ETH logo, bundled from the cryptocurrency-icons package (served from our own
+// origin by Vite — no third-party CDN), matching the homepage token art.
+import ETH_ICON from 'cryptocurrency-icons/svg/color/eth.svg';
 
 const SYMBOL = (addr: Address) =>
   TOKENS[addr.toLowerCase()]?.symbol ?? metaOf(addr)?.symbol ?? '???';
-
-/** ETH logo from the same pinned crypto-icon CDN used by the homepage art. */
-const ETH_ICON = 'https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/eth.svg';
 
 type TokenMeta = {
   address: Address;
