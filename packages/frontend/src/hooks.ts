@@ -58,7 +58,9 @@ export function useHistory() {
       if (!res.ok) throw new Error(`history ${res.status}`);
       return res.json() as Promise<{ events: HistoryEvent[] }>;
     },
-    refetchInterval: 15_000,
+    // Snappy poll so a fresh stake/withdraw/claim shows in the activity feed
+    // within seconds (backend SQLite read — cheap), no manual refresh needed.
+    refetchInterval: 4_000,
     retry: false,
   });
 }
@@ -244,7 +246,8 @@ export function useSwapHistory() {
       if (!res.ok) throw new Error(`swap history ${res.status}`);
       return res.json() as Promise<{ swaps: SwapEvent[] }>;
     },
-    refetchInterval: 15_000,
+    // Snappy poll so a fresh swap surfaces in the activity feed without a refresh.
+    refetchInterval: 4_000,
     retry: false,
   });
 }

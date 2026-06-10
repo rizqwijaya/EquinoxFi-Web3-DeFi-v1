@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useAccount,
   useReadContract,
@@ -160,6 +161,7 @@ export function StakeCard() {
   const needsApproval = mode === 'stake' && (allowance ?? 0n) < parsed && parsed > 0n;
   const overBalance = parsed > (available ?? 0n);
 
+  const queryClient = useQueryClient();
   const { writeContract, data: txHash, isPending, error, reset } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
   const busy = isPending || isConfirming;
@@ -208,6 +210,12 @@ export function StakeCard() {
   // conceptually (two wallet prompts, but no "forgotten second click").
   useEffect(() => {
     if (!isSuccess) return;
+    // A tx just confirmed — refresh the backend-driven activity feed + protocol
+    // stats so the Portfolio/landing update on their own (the 4s feed poll
+    // bridges any indexer lag), no manual page refresh needed.
+    queryClient.invalidateQueries({ queryKey: ['history'] });
+    queryClient.invalidateQueries({ queryKey: ['activity'] });
+    queryClient.invalidateQueries({ queryKey: ['stats'] });
     if (pendingAction.current === 'approve' && parsed > 0n) {
       pendingAction.current = 'stake';
       reset();
