@@ -5,37 +5,10 @@
  */
 import { useAccount } from 'wagmi';
 import { StakeCard } from '../components/StakeCard';
-import { AnimatedNumber } from '../components/ui';
+import { AnimatedNumber, MiniStat } from '../components/ui';
 import { isDeployed, REWARD_SYMBOL } from '../config';
 import { toNum } from '../format';
 import { useStats, useTotalStakePosition } from '../hooks';
-
-/** Compact stat tile for the protocol strip under the position rail. */
-function MiniStat({
-  label,
-  value,
-  decimals = 0,
-  loading,
-  delay,
-}: {
-  label: string;
-  value: number;
-  decimals?: number;
-  loading: boolean;
-  delay: number;
-}) {
-  return (
-    <div
-      style={{ animationDelay: `${delay}ms`, animationFillMode: 'backwards' }}
-      className="rounded-2xl border border-white/5 bg-midnight/40 px-4 py-3 animate-pop-in transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo/30"
-    >
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-lg font-bold tabular-nums text-slate-100">
-        {loading ? <span className="text-slate-600">-</span> : <AnimatedNumber value={value} decimals={decimals} />}
-      </div>
-    </div>
-  );
-}
 
 /** Connected user's aggregate position: staked principal + live claimable eRWD. */
 function PositionRail() {

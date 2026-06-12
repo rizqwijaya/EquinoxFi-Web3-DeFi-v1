@@ -150,6 +150,36 @@ export function StatCard({
   );
 }
 
+/**
+ * Compact stat tile for page side-rails (Stake/Swap): staggered pop-in,
+ * hover lift, animated count-up, dash placeholder while loading.
+ */
+export function MiniStat({
+  label,
+  value,
+  decimals = 0,
+  loading,
+  delay,
+}: {
+  label: string;
+  value: number;
+  decimals?: number;
+  loading: boolean;
+  delay: number;
+}) {
+  return (
+    <div
+      style={{ animationDelay: `${delay}ms`, animationFillMode: 'backwards' }}
+      className="rounded-2xl border border-white/5 bg-midnight/40 px-4 py-3 animate-pop-in transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo/30"
+    >
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className="mt-1 text-lg font-bold tabular-nums text-slate-100">
+        {loading ? <span className="text-slate-600">-</span> : <AnimatedNumber value={value} decimals={decimals} />}
+      </div>
+    </div>
+  );
+}
+
 export function Spinner({ className = '' }: { className?: string }) {
   return (
     <span
