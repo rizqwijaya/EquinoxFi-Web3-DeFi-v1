@@ -11,9 +11,9 @@
  * landing page's stats panel).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useAccount, useConnect, useReadContract, useBalance } from 'wagmi';
-import { injected } from 'wagmi/connectors';
+import { useAccount, useReadContract, useBalance } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import type { Address } from 'viem';
 import { erc20Abi } from '../abi';
 import {
@@ -159,7 +159,7 @@ function CopyAddress({ address, short }: { address: string; short: string }) {
 
 export function PortfolioPage() {
   const { address, isConnected } = useAccount();
-  const { connect } = useConnect();
+  const { openConnectModal } = useConnectModal();
 
   const { data: eth } = useBalance({ address, chainId: sepolia.id, query: { enabled: !!address } });
   const { staked, earned } = useTotalStakePosition();
@@ -215,7 +215,7 @@ export function PortfolioPage() {
             </p>
 
             <button
-              onClick={() => connect({ connector: injected() })}
+              onClick={openConnectModal}
               className="group relative mt-6 inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-indigo to-indigo-bright px-7 py-3 text-sm font-semibold shadow-lg shadow-indigo/30 transition hover:brightness-110 active:scale-[0.98]"
             >
               {/* Sweeping sheen on hover. */}

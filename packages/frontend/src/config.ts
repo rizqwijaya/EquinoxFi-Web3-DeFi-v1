@@ -4,9 +4,9 @@
  * Sepolia deployment; the UI degrades gracefully (read-only / disabled
  * actions) while they are still the zero address.
  */
-import { http, createConfig } from 'wagmi';
+import { http } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
-import { injected } from 'wagmi/connectors';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import type { Address } from 'viem';
 
 const ZERO = '0x0000000000000000000000000000000000000000' as const;
@@ -67,9 +67,15 @@ export const STAKE_VAULTS: StakeVault[] = [
 /** Reward token symbol paid by every stake vault. */
 export const REWARD_SYMBOL = 'eRWD';
 
-export const wagmiConfig = createConfig({
+// WalletConnect Cloud project id (https://cloud.walletconnect.com). Browser
+// (injected) wallets work without it; mobile/WalletConnect wallets need a real id.
+const WALLETCONNECT_PROJECT_ID =
+  import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'equinoxfi-placeholder';
+
+export const wagmiConfig = getDefaultConfig({
+  appName: 'EquinoxFi',
+  projectId: WALLETCONNECT_PROJECT_ID,
   chains: [sepolia],
-  connectors: [injected()],
   transports: {
     [sepolia.id]: http(),
   },
