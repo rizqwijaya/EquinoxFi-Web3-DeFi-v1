@@ -4,9 +4,9 @@
  * holding tokens. MockERC20.mint is permissionless on testnet, so this is pure
  * frontend UX — no faucet contract, backend, or owner key involved.
  *
- * Visual language mirrors the homepage hero / Portfolio connect wall: floating
- * blurred token art + glow blobs behind, staggered pop-in cards, ticking
- * balances, and a sheen sweep on the claim buttons.
+ * Visual language mirrors the homepage hero / Portfolio connect wall: glow
+ * blobs behind, staggered pop-in cards, ticking balances, and a sheen sweep
+ * on the claim buttons.
  */
 import { useEffect, useState } from 'react';
 import {
@@ -22,7 +22,6 @@ import { erc20Abi } from '../abi';
 import { STAKE_VAULTS, isDexDeployed, type StakeVault } from '../config';
 import { toNum, txUrl } from '../format';
 import { AnimatedNumber, Spinner, TxStatus } from '../components/ui';
-import { TokenBlobs } from '../components/TokenBlobs';
 
 /** Mint sizes offered as one-click chips (whole tokens). */
 const PRESETS = ['100', '1000', '10000'] as const;
@@ -168,8 +167,7 @@ function FaucetCard({ t, delay }: { t: StakeVault; delay: number }) {
 export function FaucetPage() {
   return (
     <div className="relative pt-10 sm:pt-14 animate-fade-in">
-      {/* Ambient floating crypto coins + colored glow blobs, homepage-style. */}
-      <TokenBlobs />
+      {/* Ambient colored glow blobs for depth. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-0">
         <div className="absolute left-1/4 top-10 h-72 w-72 -translate-x-1/2 rounded-full bg-indigo/25 blur-[120px] animate-pulse-slow" />
         <div

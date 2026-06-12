@@ -1,13 +1,12 @@
 /**
  * Stake page: the StakeCard action card, dressed up with the homepage's visual
- * language — ambient token art + glow blobs, a hero header, a live "your
- * position" rail (claimable eRWD visibly ticks up), and protocol-wide stats.
+ * language — ambient glow blobs, a live "your position" rail (claimable eRWD
+ * visibly ticks up), and protocol-wide stats.
  */
 import { useAccount } from 'wagmi';
 import { StakeCard } from '../components/StakeCard';
-import { TokenBlobs } from '../components/TokenBlobs';
 import { AnimatedNumber } from '../components/ui';
-import { isDeployed, REWARD_SYMBOL, STAKE_VAULTS } from '../config';
+import { isDeployed, REWARD_SYMBOL } from '../config';
 import { toNum } from '../format';
 import { useStats, useTotalStakePosition } from '../hooks';
 
@@ -93,9 +92,8 @@ export function StakePage() {
   const { data: stats } = useStats();
 
   return (
-    <div className="relative pt-10 sm:pt-14 animate-fade-in">
-      {/* Ambient floating crypto coins + colored glow blobs, homepage-style. */}
-      <TokenBlobs />
+    <div className="relative pt-8 animate-fade-in">
+      {/* Ambient colored glow blobs for depth. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-0">
         <div className="absolute left-1/4 top-10 h-72 w-72 -translate-x-1/2 rounded-full bg-indigo/25 blur-[120px] animate-pulse-slow" />
         <div
@@ -105,23 +103,6 @@ export function StakePage() {
       </div>
 
       <div className="relative z-10">
-        {/* Hero */}
-        <div className="mx-auto max-w-2xl text-center mb-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-bright/30 bg-indigo/10 px-3 py-1 text-xs font-semibold text-indigo-bright">
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-bright animate-pulse" />
-            Rewards stream every second
-          </span>
-          <h1 className="mt-3 text-3xl sm:text-5xl font-bold tracking-tight text-slate-100">
-            Stake tokens.{' '}
-            <span className="bg-gradient-to-r from-indigo-bright to-aurora bg-clip-text text-transparent">
-              Watch rewards grow.
-            </span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-slate-400">
-            Stake {STAKE_VAULTS.map((v) => v.symbol).join(' or ')} and earn {REWARD_SYMBOL} continuously. Unstake anytime.
-          </p>
-        </div>
-
         {!isDeployed ? (
           <div className="max-w-md mx-auto card-glow rounded-2xl px-6 py-10 text-center text-slate-400">
             Contracts not configured. Set <code className="text-aurora">VITE_VAULT_A_ADDRESS</code> in
