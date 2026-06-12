@@ -72,11 +72,15 @@ export const REWARD_SYMBOL = 'eRWD';
 const WALLETCONNECT_PROJECT_ID =
   import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'equinoxfi-placeholder';
 
+// Dedicated Sepolia RPC (Alchemy/Infura). Falls back to viem's public default,
+// which rate-limits and occasionally rejects requests with odd JSON-RPC errors.
+const SEPOLIA_RPC_URL = import.meta.env.VITE_SEPOLIA_RPC_URL as string | undefined;
+
 export const wagmiConfig = getDefaultConfig({
   appName: 'EquinoxFi',
   projectId: WALLETCONNECT_PROJECT_ID,
   chains: [sepolia],
   transports: {
-    [sepolia.id]: http(),
+    [sepolia.id]: http(SEPOLIA_RPC_URL || undefined),
   },
 });
