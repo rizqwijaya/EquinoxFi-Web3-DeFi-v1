@@ -50,7 +50,7 @@ function StatTile({
       </div>
       <div className={`mt-2 text-3xl font-bold tabular-nums ${t.text}`}>
         {loading ? (
-          <span className="text-slate-600">–</span>
+          <span className="text-slate-600">-</span>
         ) : (
           <AnimatedNumber value={value} decimals={decimals} fixed={fixed} />
         )}

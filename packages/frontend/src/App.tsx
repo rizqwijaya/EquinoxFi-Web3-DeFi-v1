@@ -10,6 +10,7 @@ import { SwapPage } from './pages/SwapPage';
 import { PoolPage } from './pages/PoolPage';
 import { StakePage } from './pages/StakePage';
 import { PortfolioPage } from './pages/PortfolioPage';
+import { FaucetPage } from './pages/FaucetPage';
 
 export function App() {
   return (
@@ -30,6 +31,7 @@ export function App() {
             <Route path="/pool" element={<PoolPage />} />
             <Route path="/stake" element={<StakePage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/faucet" element={<FaucetPage />} />
           </Routes>
         </main>
 

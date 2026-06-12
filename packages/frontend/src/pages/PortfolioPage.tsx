@@ -211,7 +211,7 @@ export function PortfolioPage() {
 
             <h2 className="text-xl font-bold text-slate-100">Connect your wallet</h2>
             <p className="mx-auto mt-1.5 max-w-xs text-sm text-slate-400">
-              View your balances, staking position, and activity — all in one place.
+              View your balances, staking position, and activity, all in one place.
             </p>
 
             <button

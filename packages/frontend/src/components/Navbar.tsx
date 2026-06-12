@@ -7,6 +7,7 @@ const tabs = [
   { to: '/pool', label: 'Pool' },
   { to: '/stake', label: 'Stake' },
   { to: '/portfolio', label: 'Portfolio' },
+  { to: '/faucet', label: 'Faucet' },
 ];
 
 /**
